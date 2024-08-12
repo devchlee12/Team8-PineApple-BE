@@ -26,6 +26,9 @@ public class DrawRewardInfo {
   private String name;
   @Column(nullable = false)
   private Integer stock;
+  @Column(nullable = false)
+  private String image;
+
   @OneToMany(mappedBy = "drawRewardInfo", fetch = FetchType.LAZY)
   private List<DrawPrize> drawPrizes;
 
