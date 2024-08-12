@@ -4,8 +4,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import lombok.RequiredArgsConstructor;
+import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
 import softeer.team_pineapple_be.domain.draw.domain.DrawDailyMessageInfo;
 import softeer.team_pineapple_be.domain.draw.domain.DrawHistory;
 import softeer.team_pineapple_be.domain.draw.domain.DrawPrize;
@@ -37,6 +40,7 @@ public class DrawService {
   private final AuthMemberService authMemberService;
   private final MemberRepository memberRepository;
   private final RandomDrawPrizeService randomDrawPrizeService;
+  private final CommentRepository commentRepository;
 
   /**
    * 경품 추첨 수행하는 메서드
@@ -46,19 +50,25 @@ public class DrawService {
   @Transactional
   public DrawResponse enterDraw() {
     String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
-    Member member =
-        memberRepository.findByPhoneNumber(memberPhoneNumber).orElseThrow(() -> new RestApiException(MemberErrorCode.NO_MEMBER));
+    Member member = memberRepository.findByPhoneNumber(memberPhoneNumber)
+                                    .orElseThrow(() -> new RestApiException(MemberErrorCode.NO_MEMBER));
     canEnterDraw(member);
     member.decrementToolBoxCnt();
     Byte prizeRank = randomDrawPrizeService.drawPrize();
-    DrawRewardInfo rewardInfo = drawRewardInfoRepository.findById(prizeRank)
-                .orElseThrow(() -> new RestApiException(DrawErrorCode.NO_PRIZE));
+    DrawRewardInfo rewardInfo =
+        drawRewardInfoRepository.findById(prizeRank).orElseThrow(() -> new RestApiException(DrawErrorCode.NO_PRIZE));
     DrawDailyMessageInfo dailyMessageInfo = drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())
-            .orElseThrow(() -> new RestApiException(DrawErrorCode.NOT_VALID_DATE)); // 예외처리
+                                                                          .orElseThrow(() -> new RestApiException(
+                                                                              DrawErrorCode.NOT_VALID_DATE)); // 예외처리
     if (rewardInfo.getRanking() == 0 || rewardInfo.getStock() == 0) {
+      LocalDate today = LocalDate.now();
+      LocalDateTime startOfDay = today.atStartOfDay();
+      LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
       drawHistoryRepository.save(new DrawHistory((byte) 0, memberPhoneNumber));
+      boolean commentedToday =
+          commentRepository.findCommentsByAuthorAndDate(memberPhoneNumber, startOfDay, endOfDay).isPresent();
       return new DrawLoseResponse(dailyMessageInfo.getLoseMessage(), dailyMessageInfo.getLoseScenario(),
-          dailyMessageInfo.getLoseImage(), member.isCar(), member.getToolBoxCnt());
+          dailyMessageInfo.getLoseImage(), member.isCar(), commentedToday, member.getToolBoxCnt());
     }
     drawHistoryRepository.save(new DrawHistory(prizeRank, memberPhoneNumber));
     rewardInfo.decreaseStock();

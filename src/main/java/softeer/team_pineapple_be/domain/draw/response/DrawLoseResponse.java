@@ -15,15 +15,17 @@ public class DrawLoseResponse extends DrawResponse {
   private String dailyLoseScenario;
   private String image;
   private Boolean car;
+  private Boolean commentedToday;
   private Integer toolBoxCount;
 
   public DrawLoseResponse(String dailyLoseMessage, String dailyLoseScenario, String image, Boolean car,
-      Integer toolBoxCount) {
+      Boolean commentedToday, Integer toolBoxCount) {
     isDrawWin = false;
     this.dailyLoseMessage = dailyLoseMessage;
     this.dailyLoseScenario = dailyLoseScenario;
     this.image = image;
     this.car = car;
+    this.commentedToday = commentedToday;
     this.toolBoxCount = toolBoxCount;
   }
 }
