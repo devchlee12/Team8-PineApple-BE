@@ -45,7 +45,7 @@ public class DrawControllerTest {
         MockitoAnnotations.openMocks(this);
         mockMvc = standaloneSetup(drawController).build();
         winningResponse = new DrawWinningResponse("당첨 메시지", "경품 이름", "image_url", 1L, true, 3);
-        loseResponse = new DrawLoseResponse("꽝 메시지", "꽝 시나리오", "image_url", false, 0);
+        loseResponse = new DrawLoseResponse("꽝 메시지", "꽝 시나리오", "image_url", false,false, 0);
         objectMapper = new ObjectMapper();
     }
 

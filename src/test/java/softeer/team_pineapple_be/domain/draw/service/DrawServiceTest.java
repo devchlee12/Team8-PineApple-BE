@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import softeer.team_pineapple_be.domain.comment.domain.Comment;
+import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
 import softeer.team_pineapple_be.domain.draw.domain.DrawDailyMessageInfo;
 import softeer.team_pineapple_be.domain.draw.domain.DrawHistory;
 import softeer.team_pineapple_be.domain.draw.domain.DrawPrize;
@@ -58,6 +60,9 @@ class DrawServiceTest {
 
     @Mock
     private AuthMemberService authMemberService;
+
+    @Mock
+    private CommentRepository commentRepository;
 
     private String phoneNumber;
     private Byte prizeRank;
@@ -114,13 +119,14 @@ class DrawServiceTest {
         when(randomDrawPrizeService.drawPrize()).thenReturn(prizeRank);
         when(drawRewardInfoRepository.findById(prizeRank)).thenReturn(Optional.of(new DrawRewardInfo(prizeRank, "Prize", 0, null))); // 재고 없음
         when(drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())).thenReturn(Optional.of(drawDailyMessageInfo));
+        when(commentRepository.findByPhoneNumberAndPostTimeBetween(eq(phoneNumber), any(), any())).thenReturn(Optional.of(new Comment()));
 
         // When
         DrawResponse response = drawService.enterDraw();
 
         // Then
         verify(drawHistoryRepository).save(any(DrawHistory.class));
-        assert response instanceof DrawLoseResponse;
+        assertThat(response).isInstanceOf(DrawLoseResponse.class);
     }
 
     @Test

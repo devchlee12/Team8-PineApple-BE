@@ -66,7 +66,7 @@ public class DrawService {
       LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
       drawHistoryRepository.save(new DrawHistory((byte) 0, memberPhoneNumber));
       boolean commentedToday =
-          commentRepository.findCommentsByAuthorAndDate(memberPhoneNumber, startOfDay, endOfDay).isPresent();
+          commentRepository.findByPhoneNumberAndPostTimeBetween(memberPhoneNumber, startOfDay, endOfDay).isPresent();
       return new DrawLoseResponse(dailyMessageInfo.getLoseMessage(), dailyMessageInfo.getLoseScenario(),
           dailyMessageInfo.getLoseImage(), member.isCar(), commentedToday, member.getToolBoxCnt());
     }
