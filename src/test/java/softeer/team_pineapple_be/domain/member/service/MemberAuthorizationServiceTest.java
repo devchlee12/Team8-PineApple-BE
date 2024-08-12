@@ -13,6 +13,7 @@ import softeer.team_pineapple_be.domain.member.exception.MemberAuthorizationErro
 import softeer.team_pineapple_be.domain.member.repository.MemberAuthorizationRepository;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
 import softeer.team_pineapple_be.domain.member.response.MemberLoginInfoResponse;
+import softeer.team_pineapple_be.domain.quiz.service.QuizRedisService;
 import softeer.team_pineapple_be.global.auth.service.PhoneAuthorizationService;
 import softeer.team_pineapple_be.global.auth.utils.JwtUtils;
 import softeer.team_pineapple_be.global.exception.RestApiException;
@@ -38,6 +39,9 @@ public class MemberAuthorizationServiceTest {
     private MemberAuthorizationRepository memberAuthorizationRepository;
 
     @Mock
+    private QuizRedisService quizRedisService;
+
+    @Mock
     private JwtUtils jwtUtils;
 
     private String phoneNumber;
@@ -61,6 +65,7 @@ public class MemberAuthorizationServiceTest {
         when(memberAuthorizationRepository.findByPhoneNumber(phoneNumber)).thenReturn(memberAuthorization);
         when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member));
         when(jwtUtils.createJwt(anyString(), anyString(), anyString(), anyLong())).thenReturn("mockedToken");
+        when(quizRedisService.wasParticipatedInQuiz(member.getPhoneNumber())).thenReturn(false);
 
         // When
         MemberLoginInfoResponse response = memberAuthorizationService.loginWithAuthCode(phoneNumber, authCode);
@@ -84,6 +89,7 @@ public class MemberAuthorizationServiceTest {
         when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.empty());
         when(memberRepository.save(any(Member.class))).thenReturn(new Member(phoneNumber));
         when(jwtUtils.createJwt(anyString(), anyString(), anyString(), anyLong())).thenReturn("mockedToken");
+        when(quizRedisService.wasParticipatedInQuiz(member.getPhoneNumber())).thenReturn(false);
 
         // When
         MemberLoginInfoResponse response = memberAuthorizationService.loginWithAuthCode(phoneNumber, authCode);

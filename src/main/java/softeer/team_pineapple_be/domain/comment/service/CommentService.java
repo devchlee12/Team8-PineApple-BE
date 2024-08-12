@@ -57,14 +57,14 @@ public class CommentService {
     return CommentPageResponse.fromCommentPage(commentPage, likeRedisService);
   }
 
-  @Scheduled(cron = "0 0 0 * * *")
-  @Transactional(isolation= Isolation.DEFAULT)
-  public void test(){
-    LocalDate yesterday = LocalDate.now().minusDays(1);
-    List<Comment> topComments = commentRepository
-            .findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(yesterday.atStartOfDay(), yesterday.atTime(LocalTime.MAX));
-
-
+//  @Scheduled(cron = "0 0 0 * * *")
+//  @Transactional(isolation= Isolation.DEFAULT)
+//  public void test(){
+//    LocalDate yesterday = LocalDate.now().minusDays(1);
+//    List<Comment> topComments = commentRepository
+//            .findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(yesterday.atStartOfDay(), yesterday.atTime(LocalTime.MAX));
+//
+//
 //    List<Member> updatedMembers = new ArrayList<>();
 //
 //    for (Comment comment : topComments) {
@@ -79,13 +79,8 @@ public class CommentService {
 //
 //
 //    memberRepository.saveAll(updatedMembers);
-    System.out.println(topComments.size());
-    topComments.stream()
-            .map(Comment::getPhoneNumber)
-            .forEach(phoneNumber -> System.out.println("Top User: " + phoneNumber));
-
-
-  }
+//
+//  }
 
 
   /**
@@ -153,7 +148,7 @@ public class CommentService {
     LocalDateTime startOfDay = today.atStartOfDay();
     LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
     Optional<Comment> commentsByAuthorAndDate =
-        commentRepository.findCommentsByAuthorAndDate(memberPhoneNumber, startOfDay, endOfDay);
+        commentRepository.findByPhoneNumberAndPostTimeBetween(memberPhoneNumber, startOfDay, endOfDay);
     return commentsByAuthorAndDate.isPresent();
   }
 }

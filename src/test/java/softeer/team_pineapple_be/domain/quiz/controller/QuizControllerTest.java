@@ -100,7 +100,7 @@ class QuizControllerTest {
     void setQuizHistory_ReturnsMemberInfoResponse() throws Exception {
         // Given
         Member member = new Member("010-1234-5678");
-        MemberInfoResponse response = MemberInfoResponse.of(member); // 필요한 필드 초기화
+        MemberInfoResponse response = MemberInfoResponse.of(member, false); // 필요한 필드 초기화
         doReturn(response).when(quizService).quizHistory();
 
         // When & Then

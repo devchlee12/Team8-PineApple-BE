@@ -10,25 +10,30 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import softeer.team_pineapple_be.domain.fcfs.dto.FcfsInfo;
+import softeer.team_pineapple_be.domain.fcfs.service.FcfsService;
 import softeer.team_pineapple_be.domain.member.domain.Member;
-import softeer.team_pineapple_be.domain.member.exception.MemberAuthorizationErrorCode;
 import softeer.team_pineapple_be.domain.member.exception.MemberErrorCode;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
 import softeer.team_pineapple_be.domain.member.response.MemberInfoResponse;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizContent;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizHistory;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizInfo;
+import softeer.team_pineapple_be.domain.quiz.domain.QuizReward;
 import softeer.team_pineapple_be.domain.quiz.exception.QuizErrorCode;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizContentRepository;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizHistoryRepository;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizInfoRepository;
+import softeer.team_pineapple_be.domain.quiz.repository.QuizRewardRepository;
 import softeer.team_pineapple_be.domain.quiz.request.QuizInfoRequest;
 import softeer.team_pineapple_be.domain.quiz.response.QuizContentResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizInfoResponse;
+import softeer.team_pineapple_be.domain.quiz.response.QuizSuccessInfoResponse;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.exception.RestApiException;
+import softeer.team_pineapple_be.global.message.MessageService;
+
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 
@@ -52,6 +57,18 @@ public class QuizServiceTest {
     @Mock
     private AuthMemberService authMemberService;
 
+    @Mock
+    private FcfsService fcfsService;
+
+    @Mock
+    private QuizRedisService quizRedisService;
+
+    @Mock
+    private QuizRewardRepository quizRewardRepository; // 의존성 모의
+    @Mock
+    private MessageService messageService; // 의존성 모의
+
+
     private QuizContent quizContent;
     private Member member;
     private Integer quizId;
@@ -59,6 +76,10 @@ public class QuizServiceTest {
     private Byte incorrectAnswerNum;
     private String phoneNumber;
     private String quizImage;
+    private String participantId;
+    private Integer successOrder;
+    private Long order;
+    private QuizReward quizReward;
 
     @BeforeEach
     void setUp() {
@@ -68,6 +89,9 @@ public class QuizServiceTest {
         incorrectAnswerNum = (byte) 2;
         phoneNumber = "010-1234-5678";
         quizImage = "quiz_image.png";
+        participantId = "testParticipantId";
+        successOrder = 1;
+        order = 1L;
         quizContent = new QuizContent(
                 1,
                 "퀴즈 설명",           // quizDescription
@@ -77,24 +101,48 @@ public class QuizServiceTest {
                 "네 번째 질문",       // quizQuestion4
                 LocalDate.now()      // quizDate
         );
+        quizReward = new QuizReward(1, "prizeImageUrl");
         member = new Member(phoneNumber);
     }
 
     @Test
-    @DisplayName("퀴즈 정답이 맞았을 때 결과 테스트 - SuccessCase")
-    void quizIsCorrect_CorrectAnswer_ReturnsTrue() {
+    @DisplayName("퀴즈 정답이 맞았고, 선착순일 때 결과 테스트 - SuccessCase")
+    void quizIsCorrect_CorrectAnswerAndFcfs_ReturnsQuizSuccessInfoResponse() {
         // Given
         QuizContent quizContent = new QuizContent(); // QuizContent 객체 생성
         QuizInfo quizInfo = new QuizInfo(quizId, quizContent, correctAnswerNum, quizImage);
         QuizInfoRequest request = new QuizInfoRequest(quizId, correctAnswerNum);
         when(quizInfoRepository.findById(quizId)).thenReturn(Optional.of(quizInfo));
+        when(fcfsService.getFirstComeFirstServe()).thenReturn(new FcfsInfo(participantId, order));
 
         // When
-        QuizInfoResponse response = quizService.quizIsCorrect(request);
+        QuizSuccessInfoResponse response = (QuizSuccessInfoResponse) quizService.quizIsCorrect(request);
 
         // Then
         assertThat(response.getIsCorrect()).isTrue();
         assertThat(response.getQuizImage()).isEqualTo(quizInfo.getQuizImage());
+        assertThat(response.getQuizParticipantId()).isEqualTo(participantId);
+        assertThat(response.getSuccessOrder()).isEqualTo(order.intValue());
+    }
+
+    @Test
+    @DisplayName("퀴즈 정답이 맞았고, 선착순이 아닐 때 결과 테스트 - SuccessCase")
+    void quizIsCorrect_CorrectAnswerAndNotFcfs_ReturnsQuizSuccessInfoResponse() {
+        // Given
+        QuizContent quizContent = new QuizContent(); // QuizContent 객체 생성
+        QuizInfo quizInfo = new QuizInfo(quizId, quizContent, correctAnswerNum, quizImage);
+        QuizInfoRequest request = new QuizInfoRequest(quizId, correctAnswerNum);
+        when(quizInfoRepository.findById(quizId)).thenReturn(Optional.of(quizInfo));
+        when(fcfsService.getFirstComeFirstServe()).thenReturn(new FcfsInfo("testUUID", 0L));
+
+        // When
+        QuizSuccessInfoResponse response = (QuizSuccessInfoResponse) quizService.quizIsCorrect(request);
+
+        // Then
+        assertThat(response.getIsCorrect()).isTrue();
+        assertThat(response.getQuizImage()).isEqualTo(quizInfo.getQuizImage());
+        assertThat(response.getQuizParticipantId()).isEqualTo("NULL");
+        assertThat(response.getSuccessOrder()).isEqualTo(501);
     }
 
     @Test
@@ -249,6 +297,8 @@ public class QuizServiceTest {
             when(quizContentRepository.findByQuizDate(any())).thenReturn(Optional.of(quizContent));
             when(quizHistoryRepository.findByMemberPhoneNumberAndQuizContentId(phoneNumber, quizContent.getId())).thenReturn(Optional.empty());
             when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member));
+            when(quizRedisService.wasParticipatedInQuiz(member.getPhoneNumber())).thenReturn(false);
+
 
             // When
             MemberInfoResponse response = quizService.quizHistory();
@@ -337,4 +387,33 @@ public class QuizServiceTest {
         }
     }
 
+    @Test
+    void getQuizReward_RewardExists_SendPrizeImage() {
+        // Given
+        when(fcfsService.getParticipantOrder(participantId)).thenReturn(successOrder);
+        when(quizRewardRepository.findBySuccessOrder(successOrder)).thenReturn(Optional.of(quizReward));
+
+        // When
+        quizService.getQuizReward(participantId);
+
+        // Then
+        verify(quizRewardRepository).findBySuccessOrder(successOrder);
+        verify(messageService).sendPrizeImage("prizeImageUrl");
+        assertThat(quizReward.getValid()).isFalse();
+    }
+
+    @Test
+    void getQuizReward_RewardDoesNotExist_ThrowRestApiException() {
+        // Given
+        when(fcfsService.getParticipantOrder(participantId)).thenReturn(successOrder);
+        when(quizRewardRepository.findBySuccessOrder(successOrder)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> quizService.getQuizReward(participantId))
+                .isInstanceOf(RestApiException.class)
+                .satisfies(exception -> {
+                    RestApiException restApiException = (RestApiException) exception; // 캐스팅
+                    assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_REWARD);
+                });
+    }
 }

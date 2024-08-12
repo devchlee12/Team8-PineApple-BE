@@ -20,7 +20,7 @@ public class JwtUtilsTest {
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         jwtUtils = new JwtUtils(secret);
-        token = jwtUtils.createJwt("testCategory", "010-1234-5678", "USER", 1000L);
+        token = jwtUtils.createJwt("testCategory", "010-1234-5678", "USER", 172800L);
         invalidToken = "invalid.token";
     }
 

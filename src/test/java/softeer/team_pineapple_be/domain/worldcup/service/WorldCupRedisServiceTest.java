@@ -40,7 +40,7 @@ public class WorldCupRedisServiceTest {
         Set<ZSetOperations.TypedTuple<String>> tupleSet = new HashSet<>();
         tupleSet.add(new TypedTupleImpl<>("1", 10.0));
         tupleSet.add(new TypedTupleImpl<>("2", 20.0));
-        when(zSetOperations.rangeWithScores("worldcup_cnt", 0, -1)).thenReturn(tupleSet);
+        when(zSetOperations.reverseRangeWithScores("worldcup_cnt", 0, -1)).thenReturn(tupleSet);
 
         // Act
         List<WorldCupResultResponse> results = worldCupRedisService.getWorldCupResults();
@@ -87,7 +87,7 @@ public class WorldCupRedisServiceTest {
 
         @Override
         public int compareTo(ZSetOperations.TypedTuple<T> o) {
-            return this.score.compareTo(o.getScore());
+            return Double.compare(o.getScore(), this.score);
         }
     }
 }
