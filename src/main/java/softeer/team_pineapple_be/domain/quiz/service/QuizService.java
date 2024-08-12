@@ -1,11 +1,12 @@
 package softeer.team_pineapple_be.domain.quiz.service;
 
+import org.springdoc.core.parsers.ReturnTypeParser;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.fcfs.dto.FcfsInfo;
 import softeer.team_pineapple_be.domain.fcfs.service.FcfsService;
@@ -25,6 +26,7 @@ import softeer.team_pineapple_be.domain.quiz.repository.QuizRewardRepository;
 import softeer.team_pineapple_be.domain.quiz.request.QuizInfoRequest;
 import softeer.team_pineapple_be.domain.quiz.response.QuizContentResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizInfoResponse;
+import softeer.team_pineapple_be.domain.quiz.response.QuizRewardCheckResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizSuccessInfoResponse;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.exception.RestApiException;
@@ -49,13 +51,14 @@ public class QuizService {
   private final QuizRewardRepository quizRewardRepository;
   private final MessageService messageService;
   private final QuizRedisService quizRedisService;
+  private final ReturnTypeParser genericReturnTypeParser;
 
   /**
    * 현재 날짜에 대한 이벤트 내용을 전송해주는 메서드
    *
    * @return 현재 날짜의 이벤트 내용
    */
-  @Transactional
+  @Transactional(readOnly = true)
   public QuizContentResponse getQuizContent() {
     QuizContent quizContent = quizContentRepository.findByQuizDate(determineQuizDate())
                                                    .orElseThrow(
@@ -70,11 +73,29 @@ public class QuizService {
    */
   @Transactional
   public void getQuizReward(String participantId) {
+    String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
+    if (quizRedisService.wasMemberWinRewardToday(memberPhoneNumber)) {
+      throw new RestApiException(QuizErrorCode.ALREADY_WIN_REWARD_TODAY);
+    }
     Integer participantOrder = fcfsService.getParticipantOrder(participantId);
     QuizReward quizReward = quizRewardRepository.findBySuccessOrder(participantOrder)
                                                 .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_REWARD));
     quizReward.invalidate();
     messageService.sendPrizeImage(quizReward.getRewardImage());
+    quizRedisService.saveRewardWin(authMemberService.getMemberPhoneNumber());
+  }
+
+
+  /**
+   * 유저가 선착순 경품을 받았는지 여부를 리턴하는 메서드
+   *
+   * @return 경품 수령 여부 응답 객체
+   */
+  @Transactional(readOnly = true)
+  public QuizRewardCheckResponse isMemberRewardedToday() {
+    String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
+    Boolean isRewarded = quizRedisService.wasMemberWinRewardToday(memberPhoneNumber);
+    return new QuizRewardCheckResponse(isRewarded);
   }
 
   /**
@@ -113,14 +134,14 @@ public class QuizService {
   public QuizInfoResponse quizIsCorrect(QuizInfoRequest quizInfoRequest) {
     QuizInfo quizInfo = quizInfoRepository.findById(quizInfoRequest.getQuizId())
                                           .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_INFO));
-    if (quizInfoRequest.getAnswerNum().equals(quizInfo.getAnswerNum())) {
-      FcfsInfo fcfsInfo = fcfsService.getFirstComeFirstServe();
-      if (fcfsInfo.order() < 1) {
-        return new QuizSuccessInfoResponse(true, quizInfo.getQuizImage(), "NULL", FCFS_FAILED_ORDER);
-      }
-      return new QuizSuccessInfoResponse(true, quizInfo.getQuizImage(), fcfsInfo.uuid(), fcfsInfo.order().intValue());
+    if (!quizInfoRequest.getAnswerNum().equals(quizInfo.getAnswerNum())) {
+      return QuizInfoResponse.of(quizInfo, false);
     }
-    return QuizInfoResponse.of(quizInfo, false);
+    FcfsInfo fcfsInfo = fcfsService.getFirstComeFirstServe();
+    if (fcfsInfo.order() < 1) {
+      return new QuizSuccessInfoResponse(true, quizInfo.getQuizImage(), "NULL", FCFS_FAILED_ORDER);
+    }
+    return new QuizSuccessInfoResponse(true, quizInfo.getQuizImage(), fcfsInfo.uuid(), fcfsInfo.order().intValue());
   }
 
   private LocalDate determineQuizDate() {

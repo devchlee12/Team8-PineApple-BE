@@ -16,6 +16,7 @@ import softeer.team_pineapple_be.domain.quiz.request.QuizInfoRequest;
 import softeer.team_pineapple_be.domain.quiz.request.QuizRewardRequest;
 import softeer.team_pineapple_be.domain.quiz.response.QuizContentResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizInfoResponse;
+import softeer.team_pineapple_be.domain.quiz.response.QuizRewardCheckResponse;
 import softeer.team_pineapple_be.domain.quiz.service.QuizService;
 import softeer.team_pineapple_be.global.auth.annotation.Auth;
 import softeer.team_pineapple_be.global.common.response.SuccessResponse;
@@ -46,6 +47,14 @@ public class QuizController {
   @PostMapping("/answer")
   public ResponseEntity<QuizInfoResponse> isCorrect(@Valid @RequestBody QuizInfoRequest quizInfoRequest) {
     return ResponseEntity.ok().body(quizService.quizIsCorrect(quizInfoRequest));
+  }
+
+  @Auth
+  @Operation(summary = "퀴즈 선착순 경품 수령 여부 판단")
+  @GetMapping("/reward/check")
+  public ResponseEntity<QuizRewardCheckResponse> quizRewardCheck() {
+    QuizRewardCheckResponse memberRewardedToday = quizService.isMemberRewardedToday();
+    return ResponseEntity.ok().body(memberRewardedToday);
   }
 
   @Auth

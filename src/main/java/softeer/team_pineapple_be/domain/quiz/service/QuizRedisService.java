@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class QuizRedisService {
   private static final String PARTICIPATED_KEY = "participated";
+  private static final String REWARDED_KEY = "rewarded";
   private final RedisTemplate<String, String> redisTemplate;
 
   /**
@@ -30,6 +31,25 @@ public class QuizRedisService {
   public void participate(String memberPhoneNumber) {
     SetOperations<String, String> setOps = redisTemplate.opsForSet();
     setOps.add(PARTICIPATED_KEY, memberPhoneNumber);
+  }
+
+  /**
+   * 당일 선착순 경품 당첨 여부 저장
+   *
+   * @param memberPhoneNumber
+   */
+  public void saveRewardWin(String memberPhoneNumber) {
+    redisTemplate.opsForSet().add(REWARDED_KEY, memberPhoneNumber);
+  }
+
+  /**
+   * 유저가 당일 선착순 상품을 받았는지 확인
+   *
+   * @param memberPhoneNumber
+   * @return
+   */
+  public Boolean wasMemberWinRewardToday(String memberPhoneNumber) {
+    return redisTemplate.opsForSet().isMember(REWARDED_KEY, memberPhoneNumber);
   }
 
   /**
