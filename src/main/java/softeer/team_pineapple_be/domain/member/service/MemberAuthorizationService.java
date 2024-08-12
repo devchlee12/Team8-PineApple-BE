@@ -12,6 +12,8 @@ import softeer.team_pineapple_be.domain.member.exception.MemberAuthorizationErro
 import softeer.team_pineapple_be.domain.member.repository.MemberAuthorizationRepository;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
 import softeer.team_pineapple_be.domain.member.response.MemberLoginInfoResponse;
+import softeer.team_pineapple_be.domain.quiz.service.QuizRedisService;
+import softeer.team_pineapple_be.domain.quiz.service.QuizService;
 import softeer.team_pineapple_be.global.auth.service.PhoneAuthorizationService;
 import softeer.team_pineapple_be.global.auth.utils.JwtUtils;
 import softeer.team_pineapple_be.global.exception.RestApiException;
@@ -25,7 +27,9 @@ public class MemberAuthorizationService {
   private final MemberRepository memberRepository;
   private final PhoneAuthorizationService phoneAuthorizationService;
   private final MemberAuthorizationRepository memberAuthorizationRepository;
+  private final QuizService quizService;
   private final JwtUtils jwtUtils;
+  private final QuizRedisService quizRedisService;
 
   /**
    * 인증코드와 전화번호를 받아서 올바른 인증코드를 입력했는지 확인하고 멤버정보 보냄.
@@ -51,7 +55,8 @@ public class MemberAuthorizationService {
     String accessToken =
         jwtUtils.createJwt("access_token", member.getPhoneNumber(), member.getRole(), 2 * 24 * 60 * 60 * 1000L);
 
-    return MemberLoginInfoResponse.of(member, accessToken);
+    return MemberLoginInfoResponse.of(member, accessToken,
+        quizRedisService.wasParticipatedInQuiz(member.getPhoneNumber()));
   }
 
   /**

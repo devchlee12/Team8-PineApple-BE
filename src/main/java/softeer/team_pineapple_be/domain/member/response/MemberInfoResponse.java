@@ -13,6 +13,7 @@ public class MemberInfoResponse {
   private String phoneNumber;
   private Integer toolBoxCnt;
   private boolean car;
+  private boolean quizParticipated;
 
   /**
    * 멤버 엔티티를 멤버 정보 응답 Response 로 변환
@@ -20,7 +21,7 @@ public class MemberInfoResponse {
    * @param member
    * @return MemberInfoResponse
    */
-  public static MemberInfoResponse of(Member member) {
-    return new MemberInfoResponse(member.getPhoneNumber(), member.getToolBoxCnt(), member.isCar());
+  public static MemberInfoResponse of(Member member, Boolean quizParticipated) {
+    return new MemberInfoResponse(member.getPhoneNumber(), member.getToolBoxCnt(), member.isCar(), quizParticipated);
   }
 }

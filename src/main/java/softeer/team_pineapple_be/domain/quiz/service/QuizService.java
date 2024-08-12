@@ -48,6 +48,7 @@ public class QuizService {
   private final FcfsService fcfsService;
   private final QuizRewardRepository quizRewardRepository;
   private final MessageService messageService;
+  private final QuizRedisService quizRedisService;
 
   /**
    * 현재 날짜에 대한 이벤트 내용을 전송해주는 메서드
@@ -98,7 +99,8 @@ public class QuizService {
     memberRepository.save(member);
     QuizHistory quizHistory = new QuizHistory(member, quizContent);
     quizHistoryRepository.save(quizHistory);
-    return MemberInfoResponse.of(member);
+    quizRedisService.participate(authMemberService.getMemberPhoneNumber());
+    return MemberInfoResponse.of(member, true);
   }
 
   /**

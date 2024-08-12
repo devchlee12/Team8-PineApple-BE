@@ -17,6 +17,7 @@ public class MemberLoginInfoResponse {
   private String phoneNumber;
   private Integer toolBoxCnt;
   private boolean car;
+  private boolean quizParticipated;
   private String accessToken;
 
   /**
@@ -25,7 +26,8 @@ public class MemberLoginInfoResponse {
    * @param member
    * @return MemberInfoResponse
    */
-  public static MemberLoginInfoResponse of(Member member, String accessToken) {
-    return new MemberLoginInfoResponse(member.getPhoneNumber(), member.getToolBoxCnt(), member.isCar(), accessToken);
+  public static MemberLoginInfoResponse of(Member member, String accessToken, Boolean quizParticipated) {
+    return new MemberLoginInfoResponse(member.getPhoneNumber(), member.getToolBoxCnt(), member.isCar(),
+        quizParticipated, accessToken);
   }
 }
