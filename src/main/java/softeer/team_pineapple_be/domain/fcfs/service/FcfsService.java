@@ -28,6 +28,13 @@ public class FcfsService {
   private final FcfsInfoRepository fcfsInfoRepository;
 
   /**
+   * 선착순 큐 초기화
+   */
+  public void clearFcfsQueue() {
+    redisTemplate.delete(FCFS_KEY);
+  }
+
+  /**
    * 선착순 등록하고 순서 알려주는 메서드 응답
    *
    * @return 0 -> 선착순 등수 안에 들지 못함// -1 -> 이미 선착순을 신청함// 나머지 양수 -> 경품 받을 수 있는 선착순에 들었고 등수가 몇등인지
