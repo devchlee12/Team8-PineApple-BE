@@ -24,6 +24,7 @@ import softeer.team_pineapple_be.domain.quiz.repository.QuizHistoryRepository;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizInfoRepository;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizRewardRepository;
 import softeer.team_pineapple_be.domain.quiz.request.QuizInfoRequest;
+import softeer.team_pineapple_be.domain.quiz.request.QuizModifyRequest;
 import softeer.team_pineapple_be.domain.quiz.response.QuizContentResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizInfoResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizRewardCheckResponse;
@@ -67,6 +68,19 @@ public class QuizService {
   }
 
   /**
+   * 날짜 별 이벤트 내용 전송해주는 메서드
+   *
+   * @param date
+   * @return 요청한 날짜에 해당하는 이벤트 내용
+   */
+  @Transactional(readOnly = true)
+  public QuizContentResponse getQuizContentOfDate(LocalDate date) {
+    QuizContent quizContent =
+        quizContentRepository.findByQuizDate(date).orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_INFO));
+    return QuizContentResponse.of(quizContent);
+  }
+
+  /**
    * 퀴즈 선착순 상품 이미지 전송
    *
    * @param participantId
@@ -85,7 +99,6 @@ public class QuizService {
     quizRedisService.saveRewardWin(authMemberService.getMemberPhoneNumber());
   }
 
-
   /**
    * 유저가 선착순 경품을 받았는지 여부를 리턴하는 메서드
    *
@@ -96,6 +109,19 @@ public class QuizService {
     String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
     Boolean isRewarded = quizRedisService.wasMemberWinRewardToday(memberPhoneNumber);
     return new QuizRewardCheckResponse(isRewarded);
+  }
+
+  /**
+   * 퀴즈 문제 수정 메서드
+   *
+   * @param quizModifyRequest
+   */
+  @Transactional
+  public void modifyQuizContent(QuizModifyRequest quizModifyRequest) {
+    QuizContent quizContent = quizContentRepository.findById(quizModifyRequest.getQuizId())
+                                                   .orElseThrow(
+                                                       () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
+    quizContent.update(quizModifyRequest);
   }
 
   /**
