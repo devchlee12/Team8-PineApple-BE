@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.fcfs.dto.FcfsInfo;
@@ -115,22 +116,46 @@ public class QuizService {
   }
 
   /**
-   * 퀴즈 문제 수정 메서드
+   * 퀴즈 문제 등록/수정 메서드
    *
    * @param quizModifyRequest
    */
   @Transactional
-  public void modifyQuizContent(QuizModifyRequest quizModifyRequest) {
-    QuizContent quizContent = quizContentRepository.findById(quizModifyRequest.getQuizId())
-                                                   .orElseThrow(
-                                                       () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
+  public void modifyOrSaveQuizContent(LocalDate date, QuizModifyRequest quizModifyRequest) {
+    Optional<QuizContent> quizContentOptional = quizContentRepository.findByQuizDate(date);
+    if (quizContentOptional.isEmpty()) {
+      quizContentRepository.save(QuizContent.builder()
+                                            .quizDescription(quizModifyRequest.getQuizDescription())
+                                            .quizQuestion1(quizModifyRequest.getQuizQuestions().get("1"))
+                                            .quizQuestion2(quizModifyRequest.getQuizQuestions().get("2"))
+                                            .quizQuestion3(quizModifyRequest.getQuizQuestions().get("3"))
+                                            .quizQuestion4(quizModifyRequest.getQuizQuestions().get("4"))
+                                            .quizDate(date)
+                                            .build());
+      return;
+    }
+    QuizContent quizContent = quizContentOptional.get();
     quizContent.update(quizModifyRequest);
   }
 
+  /**
+   * 퀴즈 정답을 등록/수정하는 메서드
+   *
+   * @param day
+   * @param quizInfoModifyRequest
+   */
   @Transactional
-  public void modifyQuizInfo(LocalDate day, QuizInfoModifyRequest quizInfoModifyRequest) {
-    QuizInfo quizInfo =
-        quizDao.getQuizInfoByDate(day).orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_INFO));
+  public void modifyOrSaveQuizInfo(LocalDate day, QuizInfoModifyRequest quizInfoModifyRequest) {
+    Optional<QuizInfo> quizInfoByDate = quizDao.getQuizInfoByDate(day);
+    if (quizInfoByDate.isEmpty()) {
+      QuizContent quizContent = quizContentRepository.findByQuizDate(day)
+                                                     .orElseThrow(
+                                                         () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
+      quizInfoRepository.save(
+          new QuizInfo(quizContent, quizInfoModifyRequest.getAnswerNum(), quizInfoModifyRequest.getQuizImage()));
+      return;
+    }
+    QuizInfo quizInfo = quizInfoByDate.get();
     quizInfo.update(quizInfoModifyRequest);
   }
 

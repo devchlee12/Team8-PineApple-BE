@@ -16,8 +16,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class QuizModifyRequest {
-  @NotNull(message = "{quiz.id_required}")
-  private int quizId;
   @NotNull(message = "{quiz.description_required}")
   private String quizDescription;
   @NotNull(message = "{quiz.questions_required}")

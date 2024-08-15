@@ -38,6 +38,12 @@ public class QuizInfo {
   @Column(nullable = false)
   private String quizImage;
 
+  public QuizInfo(QuizContent quizContent, Byte answerNum, String quizImage) {
+    this.quizContent = quizContent;
+    this.answerNum = answerNum;
+    this.quizImage = quizImage;
+  }
+
   public void update(QuizInfoModifyRequest quizInfoModifyRequest) {
     this.answerNum = quizInfoModifyRequest.getAnswerNum();
     this.quizImage = quizInfoModifyRequest.getQuizImage();

@@ -44,7 +44,7 @@ public class AdminController {
     return ResponseEntity.ok(quizContentOfDate);
   }
 
-  @Operation(summary = "날짜에 해당하는 퀴즈 답 정보 가져오기")
+  @Operation(summary = "날짜에 해당하는 퀴즈 정답 정보 가져오기")
   @GetMapping("/quiz/answers/{day}")
   public ResponseEntity<QuizAnswerResponse> getDailyQuizAnswer(@PathVariable("day") LocalDate day) {
     QuizInfo quizInfo =
@@ -52,18 +52,19 @@ public class AdminController {
     return ResponseEntity.ok(QuizAnswerResponse.of(quizInfo));
   }
 
-  @Operation(summary = "퀴즈 수정하기")
-  @PutMapping("/quiz")
-  public ResponseEntity<SuccessResponse> updateDailyQuiz(@RequestBody QuizModifyRequest quizModifyRequest) {
-    quizService.modifyQuizContent(quizModifyRequest);
+  @Operation(summary = "퀴즈 등록/수정하기")
+  @PutMapping("/quiz/{day}")
+  public ResponseEntity<SuccessResponse> updateDailyQuiz(@PathVariable("day") LocalDate day,
+      @RequestBody QuizModifyRequest quizModifyRequest) {
+    quizService.modifyOrSaveQuizContent(day, quizModifyRequest);
     return ResponseEntity.ok(new SuccessResponse());
   }
 
-  @Operation(summary = "퀴즈 정답 정보 수정")
+  @Operation(summary = "퀴즈 정답 정보 등록/수정")
   @PutMapping("/quiz/answers/{day}")
   public ResponseEntity<SuccessResponse> updateDailyQuizAnswer(@PathVariable("day") LocalDate day,
       @RequestBody QuizInfoModifyRequest quizInfoModifyRequest) {
-    quizService.modifyQuizInfo(day, quizInfoModifyRequest);
+    quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest);
     return ResponseEntity.ok(new SuccessResponse());
   }
 }

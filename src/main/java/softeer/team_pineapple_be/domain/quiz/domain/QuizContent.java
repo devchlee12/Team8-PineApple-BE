@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import softeer.team_pineapple_be.domain.quiz.request.QuizModifyRequest;
@@ -43,6 +44,16 @@ public class QuizContent {
   @Column(nullable = false)
   private LocalDate quizDate;
 
+  @Builder
+  public QuizContent(String quizDescription, String quizQuestion1, String quizQuestion2, String quizQuestion3,
+      String quizQuestion4, LocalDate quizDate) {
+    this.quizDescription = quizDescription;
+    this.quizQuestion1 = quizQuestion1;
+    this.quizQuestion2 = quizQuestion2;
+    this.quizQuestion3 = quizQuestion3;
+    this.quizQuestion4 = quizQuestion4;
+    this.quizDate = quizDate;
+  }
 
   public void update(QuizModifyRequest quizModifyRequest) {
     this.quizDescription = quizModifyRequest.getQuizDescription();
