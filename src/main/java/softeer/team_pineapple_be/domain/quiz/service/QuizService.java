@@ -14,6 +14,7 @@ import softeer.team_pineapple_be.domain.member.domain.Member;
 import softeer.team_pineapple_be.domain.member.exception.MemberErrorCode;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
 import softeer.team_pineapple_be.domain.member.response.MemberInfoResponse;
+import softeer.team_pineapple_be.domain.quiz.dao.QuizDao;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizContent;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizHistory;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizInfo;
@@ -23,6 +24,7 @@ import softeer.team_pineapple_be.domain.quiz.repository.QuizContentRepository;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizHistoryRepository;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizInfoRepository;
 import softeer.team_pineapple_be.domain.quiz.repository.QuizRewardRepository;
+import softeer.team_pineapple_be.domain.quiz.request.QuizInfoModifyRequest;
 import softeer.team_pineapple_be.domain.quiz.request.QuizInfoRequest;
 import softeer.team_pineapple_be.domain.quiz.request.QuizModifyRequest;
 import softeer.team_pineapple_be.domain.quiz.response.QuizContentResponse;
@@ -53,6 +55,7 @@ public class QuizService {
   private final MessageService messageService;
   private final QuizRedisService quizRedisService;
   private final ReturnTypeParser genericReturnTypeParser;
+  private final QuizDao quizDao;
 
   /**
    * 현재 날짜에 대한 이벤트 내용을 전송해주는 메서드
@@ -122,6 +125,13 @@ public class QuizService {
                                                    .orElseThrow(
                                                        () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
     quizContent.update(quizModifyRequest);
+  }
+
+  @Transactional
+  public void modifyQuizInfo(LocalDate day, QuizInfoModifyRequest quizInfoModifyRequest) {
+    QuizInfo quizInfo =
+        quizDao.getQuizInfoByDate(day).orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_INFO));
+    quizInfo.update(quizInfoModifyRequest);
   }
 
   /**

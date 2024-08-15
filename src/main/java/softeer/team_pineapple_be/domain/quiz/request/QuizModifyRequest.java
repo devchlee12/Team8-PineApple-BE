@@ -2,6 +2,7 @@ package softeer.team_pineapple_be.domain.quiz.request;
 
 import java.util.Map;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,7 +16,10 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class QuizModifyRequest {
+  @NotNull(message = "{quiz.id_required}")
   private int quizId;
+  @NotNull(message = "{quiz.description_required}")
   private String quizDescription;
+  @NotNull(message = "{quiz.questions_required}")
   private Map<String, String> quizQuestions;
 }

@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.draw.request.SendPrizeRequest;
@@ -18,6 +20,7 @@ import softeer.team_pineapple_be.global.auth.annotation.Auth;
 /**
  * 경품 추첨 컨트롤러
  */
+@Tag(name = "경품 추첨 API", description = "경품 추첨 기능을 제공하는 API 입니다")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/draw")
@@ -27,12 +30,14 @@ public class DrawController {
 
   @Auth
   @PostMapping
+  @Operation(summary = "경품 추첨에 참여하기")
   public ResponseEntity<DrawResponse> enterDraw() {
     return ResponseEntity.ok(drawService.enterDraw());
   }
 
   @Auth
   @PostMapping("/rewards/send-prize")
+  @Operation(summary = "당첨된 경품을 문자로 전송받기")
   public ResponseEntity<SendPrizeResponse> sendPrize(@Valid @RequestBody SendPrizeRequest request) {
     SendPrizeResponse sendPrizeResponse = drawPrizeService.sendPrizeMessage(request.getPrizeId());
     return ResponseEntity.ok(sendPrizeResponse);
