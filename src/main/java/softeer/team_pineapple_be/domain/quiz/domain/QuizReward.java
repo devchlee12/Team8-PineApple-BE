@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 
 /**
  * 퀴즈 선착순 상품 엔티티
@@ -26,11 +27,15 @@ public class QuizReward {
   private String rewardImage;
 
   @Column(nullable = false)
+  private LocalDate quizDate;
+
+  @Column(nullable = false)
   private Boolean valid;
 
-  public QuizReward(Integer successOrder, String rewardImage) {
+  public QuizReward(Integer successOrder, String rewardImage, LocalDate quizDate) {
     this.successOrder = successOrder;
     this.rewardImage = rewardImage;
+    this.quizDate = quizDate;
     this.valid = true;
   }
 

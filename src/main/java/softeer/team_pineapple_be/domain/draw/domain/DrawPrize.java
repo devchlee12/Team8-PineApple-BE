@@ -33,4 +33,11 @@ public class DrawPrize {
   public void isNowOwnedBy(String phoneNumber) {
     this.owner = phoneNumber;
   }
+  public DrawPrize(String image, Boolean valid, String owner, DrawRewardInfo drawRewardInfo) {
+    this.image = image;
+    this.valid = valid;
+    this.owner = owner;
+    this.drawRewardInfo = drawRewardInfo;
+  }
+
 }

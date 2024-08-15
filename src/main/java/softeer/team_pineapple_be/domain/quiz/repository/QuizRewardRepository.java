@@ -2,6 +2,7 @@ package softeer.team_pineapple_be.domain.quiz.repository;
 
 import org.springframework.data.repository.CrudRepository;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 import softeer.team_pineapple_be.domain.quiz.domain.QuizReward;
@@ -11,4 +12,5 @@ import softeer.team_pineapple_be.domain.quiz.domain.QuizReward;
  */
 public interface QuizRewardRepository extends CrudRepository<QuizReward, Long> {
   Optional<QuizReward> findBySuccessOrder(Integer successOrder);
+  void deleteAllByQuizDate(LocalDate quizDate);
 }

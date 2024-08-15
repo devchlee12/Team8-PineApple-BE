@@ -12,4 +12,5 @@ import softeer.team_pineapple_be.domain.draw.domain.DrawRewardInfo;
  */
 public interface DrawPrizeRepository extends JpaRepository<DrawPrize, Long> {
   Optional<DrawPrize> findFirstByDrawRewardInfoAndValid(DrawRewardInfo drawRewardInfo, boolean valid);
+  void deleteByDrawRewardInfoRanking(byte ranking);
 }

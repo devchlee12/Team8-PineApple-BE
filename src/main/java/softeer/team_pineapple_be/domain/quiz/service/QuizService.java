@@ -6,9 +6,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 import softeer.team_pineapple_be.domain.fcfs.dto.FcfsInfo;
 import softeer.team_pineapple_be.domain.fcfs.service.FcfsService;
 import softeer.team_pineapple_be.domain.member.domain.Member;
@@ -33,6 +36,8 @@ import softeer.team_pineapple_be.domain.quiz.response.QuizInfoResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizRewardCheckResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizSuccessInfoResponse;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
+import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
+import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
 import softeer.team_pineapple_be.global.exception.RestApiException;
 import softeer.team_pineapple_be.global.message.MessageService;
 
@@ -56,6 +61,8 @@ public class QuizService {
   private final MessageService messageService;
   private final QuizRedisService quizRedisService;
   private final ReturnTypeParser genericReturnTypeParser;
+  private final S3UploadService s3UploadService;
+  private final S3DeleteService s3DeleteService;
   private final QuizDao quizDao;
 
   /**
@@ -203,6 +210,35 @@ public class QuizService {
       return new QuizSuccessInfoResponse(true, quizInfo.getQuizImage(), "NULL", FCFS_FAILED_ORDER);
     }
     return new QuizSuccessInfoResponse(true, quizInfo.getQuizImage(), fcfsInfo.uuid(), fcfsInfo.order().intValue());
+  }
+
+  /**
+   * ZIP 파일을 업로드하여 퀴즈 보상 이미지를 S3에 저장하고 DB에 정보를 등록
+   *
+   * @param file     업로드할 ZIP 파일
+   * @param quizDate 퀴즈 날짜 정보
+   * @throws RestApiException 파일 형식이 ZIP이 아닌 경우 또는 권한이 없는 경우 발생
+   */
+  @Transactional
+  public void uploadQuizRewardZipFile(MultipartFile file, LocalDate quizDate) {
+    s3UploadService.validateZipFile(file);
+
+    quizContentRepository.findByQuizDate(quizDate)
+            .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
+
+    String fileName = "quizReward/" + quizDate.toString() + "/";
+    s3DeleteService.deleteFolder(fileName);
+    quizRewardRepository.deleteAllByQuizDate(quizDate);
+
+    List<QuizReward> quizRewards = new ArrayList<>();
+    Integer[] successOrder = {1};
+    s3UploadService.processZipFile(file, fileName, (multipartFile, fileUrl) -> {
+      QuizReward quizReward = new QuizReward(successOrder[0], fileUrl, quizDate);
+      successOrder[0]++;
+      quizRewards.add(quizReward);
+    });
+
+    quizRewardRepository.saveAll(quizRewards);
   }
 
   private LocalDate determineQuizDate() {

@@ -8,12 +8,15 @@ import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import softeer.team_pineapple_be.global.auth.annotation.Admin;
 import softeer.team_pineapple_be.global.auth.annotation.Auth;
 import softeer.team_pineapple_be.global.auth.context.AuthContext;
 import softeer.team_pineapple_be.global.auth.context.AuthContextHolder;
 import softeer.team_pineapple_be.global.auth.exception.AuthErrorCode;
 import softeer.team_pineapple_be.global.auth.utils.JwtUtils;
 import softeer.team_pineapple_be.global.exception.RestApiException;
+
+import java.lang.annotation.Annotation;
 
 /**
  * JWT 인증 인터셉터
@@ -28,15 +31,26 @@ public class JwtInterceptor implements HandlerInterceptor {
     if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
       return true;
     }
+
     String authorization = request.getHeader("Authorization");
-    if (!checkAnnotation(handler, Auth.class)) {
+    boolean isAuthRequired = checkAnnotation(handler, Auth.class);
+    boolean isAdminRequired = checkAnnotation(handler, Admin.class);
+    if (!isAuthRequired && !isAdminRequired) {
       if (authorization == null) {
         return true;
       }
       saveContext(authorization);
       return true;
     }
-    return authorizeAndSaveContext(authorization);
+
+    boolean isAuthenticated = authorizeAndSaveContext(authorization);
+    if (isAdminRequired) {
+      if (!isAdminRole(AuthContextHolder.getAuthContext().getRole())) {
+        throw new RestApiException(AuthErrorCode.UNAUTHORIZED);
+      }
+    }
+
+    return isAuthenticated;
   }
 
   /**
@@ -57,23 +71,20 @@ public class JwtInterceptor implements HandlerInterceptor {
   }
 
   /**
-   * Auth 어노테이션 존재하는지 확인하는 메소드
+   * Auth & Admin 어노테이션 존재하는지 확인하는 메소드
    *
    * @param handler
-   * @param authClass
+   * @param annotationClass
    * @return
    */
-  private boolean checkAnnotation(Object handler, Class<Auth> authClass) {
+  private boolean checkAnnotation(Object handler, Class<? extends Annotation> annotationClass) {
     if (handler instanceof ResourceHttpRequestHandler) {
       return false;
     }
 
     HandlerMethod handlerMethod = (HandlerMethod) handler;
-    if (null != handlerMethod.getMethodAnnotation(authClass) ||
-        null != handlerMethod.getBeanType().getAnnotation(authClass)) {
-      return true;
-    }
-    return false;
+    return handlerMethod.getMethodAnnotation(annotationClass) != null ||
+            handlerMethod.getBeanType().getAnnotation(annotationClass) != null;
   }
 
   /**
@@ -92,5 +103,15 @@ public class JwtInterceptor implements HandlerInterceptor {
       return;
     }
     AuthContextHolder.setAuthContext(new AuthContext(jwtUtils.getPhoneNumber(token), jwtUtils.getRole(token)));
+  }
+
+  /**
+   * 어드민 권한 검사를 수행하는 메서드
+   *
+   * @param role
+   * @return 어드민 권한 여부
+   */
+  private boolean isAdminRole(String role) {
+    return "ADMIN".equals(role); // 권한 검사의 실제 구현을 여기에 작성합니다.
   }
 }
