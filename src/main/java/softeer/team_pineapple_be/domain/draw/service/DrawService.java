@@ -3,9 +3,11 @@ package softeer.team_pineapple_be.domain.draw.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
@@ -18,6 +20,8 @@ import softeer.team_pineapple_be.domain.draw.repository.DrawDailyMessageInfoRepo
 import softeer.team_pineapple_be.domain.draw.repository.DrawHistoryRepository;
 import softeer.team_pineapple_be.domain.draw.repository.DrawPrizeRepository;
 import softeer.team_pineapple_be.domain.draw.repository.DrawRewardInfoRepository;
+import softeer.team_pineapple_be.domain.draw.request.DrawDailyMessageModifyRequest;
+import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawLoseResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawWinningResponse;
@@ -25,6 +29,8 @@ import softeer.team_pineapple_be.domain.member.domain.Member;
 import softeer.team_pineapple_be.domain.member.exception.MemberErrorCode;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
+import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
+import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
 import softeer.team_pineapple_be.global.exception.RestApiException;
 
 /**
@@ -33,6 +39,8 @@ import softeer.team_pineapple_be.global.exception.RestApiException;
 @Service
 @RequiredArgsConstructor
 public class DrawService {
+  public static final String DAILY_DRAW_WIN_FOLDER = "daily-win-image/";
+  public static final String DAILY_DRAW_LOSE_FOLDER = "daily-lose-image/";
   private final DrawDailyMessageInfoRepository drawDailyMessageInfoRepository;
   private final DrawHistoryRepository drawHistoryRepository;
   private final DrawPrizeRepository drawPrizeRepository;
@@ -41,6 +49,8 @@ public class DrawService {
   private final MemberRepository memberRepository;
   private final RandomDrawPrizeService randomDrawPrizeService;
   private final CommentRepository commentRepository;
+  private final S3UploadService s3UploadService;
+  private final S3DeleteService s3DeleteService;
 
   /**
    * 경품 추첨 수행하는 메서드
@@ -78,6 +88,65 @@ public class DrawService {
   }
 
   /**
+   * 일자별 응모 메시지 가져오기
+   *
+   * @param date
+   * @return
+   */
+  @Transactional(readOnly = true)
+  public DrawDailyMessageResponse getDailyMessageInfo(LocalDate date) {
+    DrawDailyMessageInfo dailyMessageInfo = drawDailyMessageInfoRepository.findByDrawDate(date)
+                                                                          .orElseThrow(() -> new RestApiException(
+                                                                              DrawErrorCode.NO_DAILY_INFO));
+    return DrawDailyMessageResponse.builder()
+                                   .winMessage(dailyMessageInfo.getWinMessage())
+                                   .loseMessage(dailyMessageInfo.getLoseMessage())
+                                   .loseScenario(dailyMessageInfo.getLoseScenario())
+                                   .winImage(dailyMessageInfo.getWinImage())
+                                   .winMessage(dailyMessageInfo.getWinMessage())
+                                   .loseImage(dailyMessageInfo.getLoseImage())
+                                   .commonScenario(dailyMessageInfo.getCommonScenario())
+                                   .drawDate(dailyMessageInfo.getDrawDate())
+                                   .build();
+  }
+
+  /**
+   * 일자별 메시지 정보 수정/등록
+   *
+   * @param drawDailyMessageModifyRequest
+   */
+  @Transactional
+  public void updateOrSaveDailyMessageInfo(DrawDailyMessageModifyRequest drawDailyMessageModifyRequest) {
+    String winImageFolder = DAILY_DRAW_WIN_FOLDER + drawDailyMessageModifyRequest.getDrawDate() + "/";
+    String loseImageFolder = DAILY_DRAW_LOSE_FOLDER + drawDailyMessageModifyRequest.getDrawDate() + "/";
+    Optional<DrawDailyMessageInfo> byDrawDate =
+        drawDailyMessageInfoRepository.findByDrawDate(drawDailyMessageModifyRequest.getDrawDate());
+    if (byDrawDate.isPresent()) { // 수정
+      DrawDailyMessageInfo dailyMessageInfo = byDrawDate.get();
+      s3DeleteService.deleteFolder(winImageFolder);
+      s3DeleteService.deleteFolder(loseImageFolder);
+      ImageUrls imageUrls = uploadDrawInfoImages(drawDailyMessageModifyRequest, winImageFolder, loseImageFolder);
+      dailyMessageInfo.update(drawDailyMessageModifyRequest.getWinMessage(),
+          drawDailyMessageModifyRequest.getLoseMessage(), drawDailyMessageModifyRequest.getLoseScenario(),
+          imageUrls.winImageUrl, imageUrls.loseImageUrl, drawDailyMessageModifyRequest.getCommonScenario(),
+          drawDailyMessageModifyRequest.getDrawDate());
+      return;
+    }
+    ImageUrls imageUrls = uploadDrawInfoImages(drawDailyMessageModifyRequest, winImageFolder, loseImageFolder);
+    drawDailyMessageInfoRepository.save(DrawDailyMessageInfo.builder()
+                                                            .winMessage(drawDailyMessageModifyRequest.getWinMessage())
+                                                            .loseMessage(drawDailyMessageModifyRequest.getLoseMessage())
+                                                            .loseScenario(
+                                                                drawDailyMessageModifyRequest.getLoseScenario())
+                                                            .winImage(imageUrls.winImageUrl)
+                                                            .loseImage(imageUrls.loseImageUrl)
+                                                            .commonScenario(
+                                                                drawDailyMessageModifyRequest.getCommonScenario())
+                                                            .drawDate(drawDailyMessageModifyRequest.getDrawDate())
+                                                            .build());
+  }
+
+  /**
    * 경품 추첨 자격 있는지 확인
    *
    * @param member
@@ -101,5 +170,25 @@ public class DrawService {
     prize.isNowOwnedBy(memberPhoneNumber);
     prize.invalidate();
     return prize.getId();
+  }
+
+  private ImageUrls uploadDrawInfoImages(DrawDailyMessageModifyRequest drawDailyMessageModifyRequest,
+      String winImageFolder, String loseImageFolder) {
+    String winImageUrl;
+    String loseImageUrl;
+    try {
+      winImageUrl = s3UploadService.saveFile(drawDailyMessageModifyRequest.getWinImage(), winImageFolder);
+    } catch (IOException e) {
+      throw new RestApiException(DrawErrorCode.DAILY_INFO_WIN_IMAGE_UPLOAD_FAILED);
+    }
+    try {
+      loseImageUrl = s3UploadService.saveFile(drawDailyMessageModifyRequest.getLoseImage(), loseImageFolder);
+    } catch (IOException e) {
+      throw new RestApiException(DrawErrorCode.DAILY_INFO_LOSE_IMAGE_UPLOAD_FAILED);
+    }
+    return new ImageUrls(winImageUrl, loseImageUrl);
+  }
+
+  private record ImageUrls(String winImageUrl, String loseImageUrl) {
   }
 }

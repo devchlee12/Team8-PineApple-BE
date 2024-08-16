@@ -1,6 +1,7 @@
 package softeer.team_pineapple_be.domain.quiz.request;
 
 import org.hibernate.validator.constraints.Range;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -20,5 +21,5 @@ public class QuizInfoModifyRequest {
   @Range(min = 1, max = 4, message = "{quiz.answer_num_range}")
   private Byte answerNum;
   @NotNull(message = "{quiz.image_required}")
-  private String quizImage;
+  private MultipartFile quizImage;
 }

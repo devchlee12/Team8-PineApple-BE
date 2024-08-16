@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -34,5 +35,30 @@ public class DrawDailyMessageInfo {
   @Column(nullable = false)
   private String loseImage;
   @Column(nullable = false)
+  private String commonScenario;
+  @Column(nullable = false)
   private LocalDate drawDate;
+
+  @Builder
+  public DrawDailyMessageInfo(String winMessage, String loseMessage, String loseScenario, String winImage,
+      String loseImage, String commonScenario, LocalDate drawDate) {
+    this.winMessage = winMessage;
+    this.loseMessage = loseMessage;
+    this.loseScenario = loseScenario;
+    this.winImage = winImage;
+    this.loseImage = loseImage;
+    this.commonScenario = commonScenario;
+    this.drawDate = drawDate;
+  }
+
+  public void update(String winMessage, String loseMessage, String loseScenario, String winImage, String loseImage,
+      String commonScenario, LocalDate drawDate) {
+    this.winMessage = winMessage;
+    this.loseMessage = loseMessage;
+    this.loseScenario = loseScenario;
+    this.winImage = winImage;
+    this.loseImage = loseImage;
+    this.commonScenario = commonScenario;
+    this.drawDate = drawDate;
+  }
 }

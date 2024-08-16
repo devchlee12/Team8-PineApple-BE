@@ -3,7 +3,9 @@ package softeer.team_pineapple_be.domain.quiz.service;
 import org.springdoc.core.parsers.ReturnTypeParser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -11,7 +13,6 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.multipart.MultipartFile;
 import softeer.team_pineapple_be.domain.fcfs.dto.FcfsInfo;
 import softeer.team_pineapple_be.domain.fcfs.service.FcfsService;
 import softeer.team_pineapple_be.domain.member.domain.Member;
@@ -50,6 +51,7 @@ import softeer.team_pineapple_be.global.message.MessageService;
 @RequiredArgsConstructor
 public class QuizService {
 
+  public static final String QUIZ_INFO_FOLDER = "quizInfo/";
   private static final int FCFS_FAILED_ORDER = 501;
   private final QuizContentRepository quizContentRepository;
   private final QuizInfoRepository quizInfoRepository;
@@ -153,17 +155,21 @@ public class QuizService {
    */
   @Transactional
   public void modifyOrSaveQuizInfo(LocalDate day, QuizInfoModifyRequest quizInfoModifyRequest) {
+    String imageUrl;
+    String fileName = QUIZ_INFO_FOLDER + day.toString() + "/";
     Optional<QuizInfo> quizInfoByDate = quizDao.getQuizInfoByDate(day);
     if (quizInfoByDate.isEmpty()) {
       QuizContent quizContent = quizContentRepository.findByQuizDate(day)
                                                      .orElseThrow(
                                                          () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
-      quizInfoRepository.save(
-          new QuizInfo(quizContent, quizInfoModifyRequest.getAnswerNum(), quizInfoModifyRequest.getQuizImage()));
+      imageUrl = uploadImageToS3(quizInfoModifyRequest, fileName);
+      quizInfoRepository.save(new QuizInfo(quizContent, quizInfoModifyRequest.getAnswerNum(), imageUrl));
       return;
     }
     QuizInfo quizInfo = quizInfoByDate.get();
-    quizInfo.update(quizInfoModifyRequest);
+    s3DeleteService.deleteFolder(fileName);
+    imageUrl = uploadImageToS3(quizInfoModifyRequest, fileName);
+    quizInfo.update(quizInfoModifyRequest.getAnswerNum(), imageUrl);
   }
 
   /**
@@ -224,7 +230,7 @@ public class QuizService {
     s3UploadService.validateZipFile(file);
 
     quizContentRepository.findByQuizDate(quizDate)
-            .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
+                         .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
 
     String fileName = "quizReward/" + quizDate.toString() + "/";
     s3DeleteService.deleteFolder(fileName);
@@ -255,5 +261,22 @@ public class QuizService {
     }
 
     return LocalDate.now();
+  }
+
+  /**
+   * 퀴즈 이미지를 S3에 업로드한다.
+   *
+   * @param quizInfoModifyRequest
+   * @param fileName
+   * @return 퀴즈 이미지 URL
+   */
+  private String uploadImageToS3(QuizInfoModifyRequest quizInfoModifyRequest, String fileName) {
+    String imageUrl;
+    try {
+      imageUrl = s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName);
+    } catch (IOException e) {
+      throw new RestApiException(QuizErrorCode.NO_QUIZ_IMAGE);
+    }
+    return imageUrl;
   }
 }

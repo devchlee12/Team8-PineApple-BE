@@ -11,7 +11,6 @@ import jakarta.persistence.OneToOne;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import softeer.team_pineapple_be.domain.quiz.request.QuizInfoModifyRequest;
 
 //TODO: quizDescription 넣어야 될지 얘기해보기
 
@@ -44,8 +43,8 @@ public class QuizInfo {
     this.quizImage = quizImage;
   }
 
-  public void update(QuizInfoModifyRequest quizInfoModifyRequest) {
-    this.answerNum = quizInfoModifyRequest.getAnswerNum();
-    this.quizImage = quizInfoModifyRequest.getQuizImage();
+  public void update(Byte answerNum, String quizImage) {
+    this.answerNum = answerNum;
+    this.quizImage = quizImage;
   }
 }
