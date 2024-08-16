@@ -11,20 +11,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import softeer.team_pineapple_be.domain.admin.request.EventScheduleUpdateRequest;
+import softeer.team_pineapple_be.domain.admin.response.EventScheduleResponse;
+import softeer.team_pineapple_be.domain.admin.service.EventDayInfoService;
 import softeer.team_pineapple_be.domain.draw.request.DrawDailyMessageModifyRequest;
 import softeer.team_pineapple_be.domain.draw.request.DrawPrizeRequest;
-import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
 import softeer.team_pineapple_be.domain.draw.request.DrawProbabilityRequest;
 import softeer.team_pineapple_be.domain.draw.request.DrawRewardInfoListRequest;
+import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawProbabilityResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoListResponse;
 import softeer.team_pineapple_be.domain.draw.service.DrawPrizeService;
-import softeer.team_pineapple_be.domain.draw.service.DrawService;
 import softeer.team_pineapple_be.domain.draw.service.DrawProbabilityService;
 import softeer.team_pineapple_be.domain.draw.service.DrawRewardInfoService;
 import softeer.team_pineapple_be.domain.draw.service.DrawService;
@@ -56,6 +59,21 @@ public class AdminController {
   private final DrawService drawService;
   private final DrawProbabilityService drawProbabilityService;
   private final DrawRewardInfoService drawRewardInfoService;
+  private final EventDayInfoService eventDayInfoService;
+
+  @Operation(summary = "응모 상품 수정")
+  @PutMapping("/drawRewardInfo")
+  public ResponseEntity<SuccessResponse> addDrawRewardInfoList(
+      @RequestBody DrawRewardInfoListRequest drawRewardInfoListRequest) {
+    drawRewardInfoService.setDrawRewardInfoList(drawRewardInfoListRequest);
+    return ResponseEntity.ok(new SuccessResponse());
+  }
+
+  @Operation(summary = "응모 상품 조회")
+  @GetMapping("/drawRewardInfo")
+  public ResponseEntity<DrawRewardInfoListResponse> getAllDrawRewardInfo() {
+    return ResponseEntity.ok(drawRewardInfoService.getAllDrawRewardInfo());
+  }
 
   @Operation(summary = "날짜에 해당하는 퀴즈 정보 가져오기")
   @GetMapping("/quiz/{day}")
@@ -77,6 +95,26 @@ public class AdminController {
   public ResponseEntity<DrawDailyMessageResponse> getDrawDailyMessageInfo(@PathVariable("day") LocalDate day) {
     DrawDailyMessageResponse dailyMessageInfo = drawService.getDailyMessageInfo(day);
     return ResponseEntity.ok(dailyMessageInfo);
+  }
+
+  @Operation(summary = "응모 당첨 확률 조회")
+  @GetMapping("/drawProbability")
+  public ResponseEntity<DrawProbabilityResponse> getDrawProbability() {
+    return ResponseEntity.ok(drawProbabilityService.getDrawProbability());
+  }
+
+  @Operation(summary = "이벤트 스케줄 확인")
+  @GetMapping("/event-schedules")
+  public ResponseEntity<List<EventScheduleResponse>> getEventSchedules() {
+    List<EventScheduleResponse> eventSchedules = eventDayInfoService.getEventSchedules();
+    return ResponseEntity.ok(eventSchedules);
+  }
+
+  @Operation(summary = "응모 당첨 확률 수정")
+  @PutMapping("/drawProbability")
+  public ResponseEntity<SuccessResponse> setDrawProbability(@RequestBody DrawProbabilityRequest request) {
+    drawProbabilityService.setDrawProbability(request);
+    return ResponseEntity.ok(new SuccessResponse());
   }
 
   @Operation(summary = "퀴즈 등록/수정하기")
@@ -103,6 +141,14 @@ public class AdminController {
     return ResponseEntity.ok(new SuccessResponse());
   }
 
+  @Operation(summary = "이벤트 스케줄 수정하기")
+  @PutMapping("/event-schedules")
+  public ResponseEntity<SuccessResponse> updateEventSchedules(
+      @RequestBody EventScheduleUpdateRequest eventScheduleUpdateRequest) {
+    eventDayInfoService.updateEventStartDay(eventScheduleUpdateRequest);
+    return ResponseEntity.ok(new SuccessResponse());
+  }
+
   @Operation(summary = "응모 경품(바코드)이미지 등록 및 삭제")
   @PostMapping("/drawPrize")
   public ResponseEntity<SuccessResponse> uploadDrawPrize(@Valid @ModelAttribute DrawPrizeRequest drawPrizeRequest) {
@@ -115,32 +161,6 @@ public class AdminController {
   public ResponseEntity<SuccessResponse> uploadQuizReward(
       @ModelAttribute QuizRewardUploadRequest quizRewardUploadRequest) {
     quizService.uploadQuizRewardZipFile(quizRewardUploadRequest.getFile(), quizRewardUploadRequest.getQuizDate());
-    return ResponseEntity.ok(new SuccessResponse());
-  }
-
-  @Operation(summary = "응모 당첨 확률 조회")
-  @GetMapping("/drawProbability")
-  public ResponseEntity<DrawProbabilityResponse> getDrawProbability() {
-    return ResponseEntity.ok(drawProbabilityService.getDrawProbability());
-  }
-
-  @Operation(summary = "응모 당첨 확률 수정")
-  @PutMapping("/drawProbability")
-  public ResponseEntity<SuccessResponse> setDrawProbability(@RequestBody DrawProbabilityRequest request) {
-    drawProbabilityService.setDrawProbability(request);
-    return ResponseEntity.ok(new SuccessResponse());
-  }
-
-  @Operation(summary = "응모 상품 조회")
-  @GetMapping("/drawRewardInfo")
-  public ResponseEntity<DrawRewardInfoListResponse> getAllDrawRewardInfo() {
-    return ResponseEntity.ok(drawRewardInfoService.getAllDrawRewardInfo());
-  }
-
-  @Operation(summary = "응모 상품 수정")
-  @PutMapping("/drawRewardInfo")
-  public ResponseEntity<SuccessResponse> addDrawRewardInfoList(@RequestBody DrawRewardInfoListRequest drawRewardInfoListRequest) {
-    drawRewardInfoService.setDrawRewardInfoList(drawRewardInfoListRequest);
     return ResponseEntity.ok(new SuccessResponse());
   }
 }

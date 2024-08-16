@@ -2,22 +2,24 @@ package softeer.team_pineapple_be.domain.draw.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.multipart.MultipartFile;
 import softeer.team_pineapple_be.domain.draw.domain.DrawPrize;
 import softeer.team_pineapple_be.domain.draw.domain.DrawRewardInfo;
 import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
 import softeer.team_pineapple_be.domain.draw.repository.DrawPrizeRepository;
 import softeer.team_pineapple_be.domain.draw.repository.DrawRewardInfoRepository;
+import softeer.team_pineapple_be.domain.draw.response.DrawRewardImageResponse;
 import softeer.team_pineapple_be.domain.draw.response.SendPrizeResponse;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
 import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
 import softeer.team_pineapple_be.global.exception.RestApiException;
 import softeer.team_pineapple_be.global.message.MessageService;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 경품 서비스
@@ -33,7 +35,17 @@ public class DrawPrizeService {
   private final DrawRewardInfoRepository drawRewardInfoRepository;
 
   /**
+   * 응모 경품 이미지를 반환하는 메서드
+   */
+  @Transactional(readOnly = true)
+  public List<DrawRewardImageResponse> getDrawRewardImages() {
+    List<DrawRewardInfo> all = drawRewardInfoRepository.findAll();
+    return all.stream().map(DrawRewardImageResponse::of).toList();
+  }
+
+  /**
    * 경품을 전송하는 메서드
+   *
    * @param prizeId 전송하고자 하는 상품의 id
    * @return 상품 전송 결과
    */
@@ -62,7 +74,8 @@ public class DrawPrizeService {
     s3UploadService.validateZipFile(file);
 
     DrawRewardInfo drawRewardInfo = drawRewardInfoRepository.findById(Byte.parseByte(ranking))
-            .orElseThrow(() -> new RestApiException(DrawErrorCode.NO_PRIZE));
+                                                            .orElseThrow(
+                                                                () -> new RestApiException(DrawErrorCode.NO_PRIZE));
 
     String fileName = "draw/" + ranking + "/";
     s3DeleteService.deleteFolder(fileName);
