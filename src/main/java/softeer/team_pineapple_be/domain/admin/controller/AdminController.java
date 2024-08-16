@@ -19,7 +19,14 @@ import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.draw.request.DrawDailyMessageModifyRequest;
 import softeer.team_pineapple_be.domain.draw.request.DrawPrizeRequest;
 import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
+import softeer.team_pineapple_be.domain.draw.request.DrawProbabilityRequest;
+import softeer.team_pineapple_be.domain.draw.request.DrawRewardInfoListRequest;
+import softeer.team_pineapple_be.domain.draw.response.DrawProbabilityResponse;
+import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoListResponse;
 import softeer.team_pineapple_be.domain.draw.service.DrawPrizeService;
+import softeer.team_pineapple_be.domain.draw.service.DrawService;
+import softeer.team_pineapple_be.domain.draw.service.DrawProbabilityService;
+import softeer.team_pineapple_be.domain.draw.service.DrawRewardInfoService;
 import softeer.team_pineapple_be.domain.draw.service.DrawService;
 import softeer.team_pineapple_be.domain.quiz.dao.QuizDao;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizInfo;
@@ -47,6 +54,8 @@ public class AdminController {
   private final QuizDao quizDao;
   private final DrawPrizeService drawPrizeService;
   private final DrawService drawService;
+  private final DrawProbabilityService drawProbabilityService;
+  private final DrawRewardInfoService drawRewardInfoService;
 
   @Operation(summary = "날짜에 해당하는 퀴즈 정보 가져오기")
   @GetMapping("/quiz/{day}")
@@ -106,6 +115,32 @@ public class AdminController {
   public ResponseEntity<SuccessResponse> uploadQuizReward(
       @ModelAttribute QuizRewardUploadRequest quizRewardUploadRequest) {
     quizService.uploadQuizRewardZipFile(quizRewardUploadRequest.getFile(), quizRewardUploadRequest.getQuizDate());
+    return ResponseEntity.ok(new SuccessResponse());
+  }
+
+  @Operation(summary = "응모 당첨 확률 조회")
+  @GetMapping("/drawProbability")
+  public ResponseEntity<DrawProbabilityResponse> getDrawProbability() {
+    return ResponseEntity.ok(drawProbabilityService.getDrawProbability());
+  }
+
+  @Operation(summary = "응모 당첨 확률 수정")
+  @PutMapping("/drawProbability")
+  public ResponseEntity<SuccessResponse> setDrawProbability(@RequestBody DrawProbabilityRequest request) {
+    drawProbabilityService.setDrawProbability(request);
+    return ResponseEntity.ok(new SuccessResponse());
+  }
+
+  @Operation(summary = "응모 상품 조회")
+  @GetMapping("/drawRewardInfo")
+  public ResponseEntity<DrawRewardInfoListResponse> getAllDrawRewardInfo() {
+    return ResponseEntity.ok(drawRewardInfoService.getAllDrawRewardInfo());
+  }
+
+  @Operation(summary = "응모 상품 수정")
+  @PutMapping("/drawRewardInfo")
+  public ResponseEntity<SuccessResponse> addDrawRewardInfoList(@RequestBody DrawRewardInfoListRequest drawRewardInfoListRequest) {
+    drawRewardInfoService.setDrawRewardInfoList(drawRewardInfoListRequest);
     return ResponseEntity.ok(new SuccessResponse());
   }
 }

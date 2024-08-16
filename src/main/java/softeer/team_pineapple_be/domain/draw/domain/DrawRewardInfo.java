@@ -35,4 +35,11 @@ public class DrawRewardInfo {
   public void decreaseStock() {
     stock--;
   }
+
+  public DrawRewardInfo(Byte ranking, String name, Integer stock, String image) {
+    this.ranking = ranking;
+    this.name = name;
+    this.stock = stock;
+    this.image = image;
+  }
 }
