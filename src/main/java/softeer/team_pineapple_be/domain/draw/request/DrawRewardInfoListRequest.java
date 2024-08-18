@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,11 +20,12 @@ public class DrawRewardInfoListRequest {
     @Getter
     @Setter
     @AllArgsConstructor
+    @NoArgsConstructor
     public static class DrawRewardInfoRequest {
         private Byte ranking;
         private String name;
         private Integer stock;
-        private String image;
+        private MultipartFile image;
 
     }
 }

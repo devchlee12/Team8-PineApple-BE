@@ -7,24 +7,18 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
-import softeer.team_pineapple_be.domain.draw.domain.DrawDailyMessageInfo;
-import softeer.team_pineapple_be.domain.draw.domain.DrawHistory;
-import softeer.team_pineapple_be.domain.draw.domain.DrawPrize;
-import softeer.team_pineapple_be.domain.draw.domain.DrawRewardInfo;
+import softeer.team_pineapple_be.domain.draw.domain.*;
 import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
-import softeer.team_pineapple_be.domain.draw.repository.DrawDailyMessageInfoRepository;
-import softeer.team_pineapple_be.domain.draw.repository.DrawHistoryRepository;
-import softeer.team_pineapple_be.domain.draw.repository.DrawPrizeRepository;
-import softeer.team_pineapple_be.domain.draw.repository.DrawRewardInfoRepository;
+import softeer.team_pineapple_be.domain.draw.repository.*;
 import softeer.team_pineapple_be.domain.draw.request.DrawDailyMessageModifyRequest;
-import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
-import softeer.team_pineapple_be.domain.draw.response.DrawLoseResponse;
-import softeer.team_pineapple_be.domain.draw.response.DrawResponse;
-import softeer.team_pineapple_be.domain.draw.response.DrawWinningResponse;
+import softeer.team_pineapple_be.domain.draw.response.*;
 import softeer.team_pineapple_be.domain.member.domain.Member;
 import softeer.team_pineapple_be.domain.member.exception.MemberErrorCode;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
@@ -51,6 +45,7 @@ public class DrawService {
   private final CommentRepository commentRepository;
   private final S3UploadService s3UploadService;
   private final S3DeleteService s3DeleteService;
+  private final DrawProbabilityRepository drawProbabilityRepository;
 
   /**
    * 경품 추첨 수행하는 메서드
@@ -144,6 +139,29 @@ public class DrawService {
                                                                 drawDailyMessageModifyRequest.getCommonScenario())
                                                             .drawDate(drawDailyMessageModifyRequest.getDrawDate())
                                                             .build());
+  }
+
+
+  @Transactional
+  public DrawRemainingResponse getDrawRemaining(){
+    List<DrawRewardInfo> rewardInfos = drawRewardInfoRepository.findAll();
+    List<DrawProbability> drawProbabilities = drawProbabilityRepository.findAll();
+    List<DrawRemainingResponse.DrawRemaining> drawRemainings = rewardInfos.stream()
+            .map(rewardInfo -> {
+              Byte ranking = rewardInfo.getRanking();
+              Integer nowStock = rewardInfo.getStock();
+
+              Integer totalStock = drawProbabilities.stream()
+                      .filter(probability -> probability.getRanking().equals(ranking))
+                      .map(DrawProbability::getProbability)
+                      .findFirst()
+                      .orElse(0);
+
+              return new DrawRemainingResponse.DrawRemaining(ranking, nowStock, totalStock);
+            })
+            .collect(Collectors.toList());
+
+    return new DrawRemainingResponse(drawRemainings);
   }
 
   /**

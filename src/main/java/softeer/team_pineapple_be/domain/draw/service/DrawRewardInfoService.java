@@ -7,7 +7,10 @@ import softeer.team_pineapple_be.domain.draw.domain.DrawRewardInfo;
 import softeer.team_pineapple_be.domain.draw.repository.DrawRewardInfoRepository;
 import softeer.team_pineapple_be.domain.draw.request.DrawRewardInfoListRequest;
 import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoListResponse;
+import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
+import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,7 +20,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class DrawRewardInfoService {
+    private static final String DRAW_REWAR_INFO_FOLDER = "drawRewardInfo/";
     private final DrawRewardInfoRepository drawRewardInfoRepository;
+    private final S3UploadService s3UploadService;
+    private final S3DeleteService s3DeleteService;
+
 
     /**
      * 모든 경품에 대한 조회를 하는 메서드
@@ -40,12 +47,22 @@ public class DrawRewardInfoService {
     @Transactional
     public void setDrawRewardInfoList(DrawRewardInfoListRequest request) {
         List<DrawRewardInfo> rewardInfoList = request.getRewards().stream()
-                .map(rewardInfoRequest -> new DrawRewardInfo(
-                        rewardInfoRequest.getRanking(),
-                        rewardInfoRequest.getName(),
-                        rewardInfoRequest.getStock(),
-                        rewardInfoRequest.getImage()
-                ))
+                .map(rewardInfoRequest -> {
+                    String fileName = DRAW_REWAR_INFO_FOLDER + rewardInfoRequest.getRanking() + "/";
+                    s3DeleteService.deleteFolder(fileName);
+                    String image;
+                    try {
+                        image = s3UploadService.saveFile(rewardInfoRequest.getImage(), fileName);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new DrawRewardInfo(
+                            rewardInfoRequest.getRanking(),
+                            rewardInfoRequest.getName(),
+                            rewardInfoRequest.getStock(),
+                            image
+                    );
+                })
                 .collect(Collectors.toList());
 
         drawRewardInfoRepository.saveAll(rewardInfoList);
