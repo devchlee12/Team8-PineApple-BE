@@ -35,7 +35,7 @@ public class QuizHistoryService {
     public QuizHistoryResponse getDayNRetentionAndDAU() {
         determineTotalDays();
         double[][] retentionRates = initializeRetentionRates();
-        Integer[] dau = new Integer[totalDays];
+        int[] dau = new int[totalDays];
         List<QuizHistory> allHistories = quizHistoryRepository.findAll();
 
 
@@ -62,32 +62,55 @@ public class QuizHistoryService {
         return retentionRates;
     }
 
-    private void calculateRetentionRates(double[][] retentionRates, Integer[] dau, Map<Integer, Set<Member>> allMemberMap, Map<Integer, Set<Member>> dayMemberMap) {
+    private void initializeArray(double[][] array, double value) {
+        for (double[] row : array) {
+            Arrays.fill(row, value);
+        }
+    }
+
+    private void calculateRetentionRates(double[][] retentionRates, int[] dau, Map<Integer, Set<Member>> allMemberMap, Map<Integer, Set<Member>> dayMemberMap) {
         for (int startDay = 1; startDay <= totalDays; startDay++) {
             Set<Member> startDayMembers = getMembersForDay(startDay, allMemberMap);
             Set<Member> dayMembers = getMembersForDay(startDay, dayMemberMap);
+
             if (dayMembers == null || dayMembers.isEmpty()) {
+                handleEmptyDayMembers(retentionRates, startDay);
                 continue;
             }
-            dau[startDay-1] = dayMembers.size();
+
+            dau[startDay - 1] = dayMembers.size();
 
             if (startDayMembers == null || startDayMembers.isEmpty()) {
                 retentionRates[startDay - 1][0] = 0;
                 continue;
             }
-            retentionRates[startDay - 1][0] = startDayMembers.size();
 
-            for (int targetDay = startDay + 1; targetDay <= totalDays; targetDay++) {
-                Set<Member> targetDayMembers = getMembersForDay(targetDay, dayMemberMap);
-                if (targetDayMembers == null || targetDayMembers.isEmpty()) {
-                    retentionRates[startDay - 1][targetDay-1] = 0.0;
-                    continue;
-                }
-                double retentionRate = calculateRetentionRate(startDayMembers, targetDayMembers);
-                retentionRates[startDay - 1][targetDay-1] = retentionRate;
-            }
+            retentionRates[startDay - 1][0] = startDayMembers.size();
+            calculateRetentionForSubsequentDays(retentionRates, startDayMembers, startDay, dayMemberMap);
         }
     }
+
+    private void handleEmptyDayMembers(double[][] retentionRates, int startDay) {
+        retentionRates[startDay - 1][0] = 0;
+        for (int targetDay = startDay + 1; targetDay <= totalDays; targetDay++) {
+            retentionRates[startDay - 1][targetDay - 1] = 0;
+        }
+    }
+
+    private void calculateRetentionForSubsequentDays(double[][] retentionRates, Set<Member> startDayMembers, int startDay, Map<Integer, Set<Member>> dayMemberMap) {
+        for (int targetDay = startDay + 1; targetDay <= totalDays; targetDay++) {
+            Set<Member> targetDayMembers = getMembersForDay(targetDay, dayMemberMap);
+            retentionRates[startDay - 1][targetDay - 1] = calculateRetentionOrZero(startDayMembers, targetDayMembers);
+        }
+    }
+
+    private double calculateRetentionOrZero(Set<Member> startDayMembers, Set<Member> targetDayMembers) {
+        if (targetDayMembers == null || targetDayMembers.isEmpty()) {
+            return 0.0;
+        }
+        return calculateRetentionRate(startDayMembers, targetDayMembers);
+    }
+
 
     private Set<Member> getMembersForDay(int day, Map<Integer, Set<Member>> memberMap) {
         return memberMap.get(day);
@@ -97,12 +120,6 @@ public class QuizHistoryService {
         long retainedCount = targetDayMembers.stream().filter(startDayMembers::contains).count();
         double retentionRate = (double) retainedCount / startDayMembers.size() * 100;
         return Math.round(retentionRate * 100.0) / 100.0;
-    }
-
-    private void initializeArray(double[][] array, double value) {
-        for (double[] row : array) {
-            Arrays.fill(row, value);
-        }
     }
 
     private Map<Integer, Set<Member>> createAllMemberMap(List<QuizHistory> allHistories, Set<Member> allMembers) {

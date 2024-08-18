@@ -11,5 +11,5 @@ import lombok.Getter;
 public class QuizHistoryResponse {
 
     private double[][] dayNRetention;
-    private Integer[] dau;
+    private int[] dau;
 }
