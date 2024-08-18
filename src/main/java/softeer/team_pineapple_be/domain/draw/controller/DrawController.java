@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.draw.request.SendPrizeRequest;
+import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawRewardImageResponse;
 import softeer.team_pineapple_be.domain.draw.response.SendPrizeResponse;
@@ -52,5 +53,11 @@ public class DrawController {
   public ResponseEntity<SendPrizeResponse> sendPrize(@Valid @RequestBody SendPrizeRequest request) {
     SendPrizeResponse sendPrizeResponse = drawPrizeService.sendPrizeMessage(request.getPrizeId());
     return ResponseEntity.ok(sendPrizeResponse);
+  }
+
+  @Operation(summary = "해당 날짜와 응모 시나리오 조회")
+  @GetMapping("/scenario")
+  public ResponseEntity<DrawDailyMessageResponse.DrawDailyScenario> getDrawDailyScenario(){
+    return ResponseEntity.ok(drawService.getDrawDailyScenario());
   }
 }

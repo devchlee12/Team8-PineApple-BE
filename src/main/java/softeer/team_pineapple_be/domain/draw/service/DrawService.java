@@ -13,6 +13,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
+import softeer.team_pineapple_be.domain.admin.domain.EventDayInfo;
+import softeer.team_pineapple_be.domain.admin.repisotory.EventDayInfoRepository;
 import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
 import softeer.team_pineapple_be.domain.draw.domain.*;
 import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
@@ -46,6 +48,7 @@ public class DrawService {
   private final S3UploadService s3UploadService;
   private final S3DeleteService s3DeleteService;
   private final DrawProbabilityRepository drawProbabilityRepository;
+  private final EventDayInfoRepository eventDayInfoRepository;
 
   /**
    * 경품 추첨 수행하는 메서드
@@ -162,6 +165,19 @@ public class DrawService {
             .collect(Collectors.toList());
 
     return new DrawRemainingResponse(drawRemainings);
+  }
+
+  /**
+   * 해당 날짜의 응모 시나리오를 조회하는 메서드
+   * @return 해당 날짜의 이벤트 진행 일 수와 응모 시나리오
+   */
+  @Transactional
+  public DrawDailyMessageResponse.DrawDailyScenario getDrawDailyScenario(){
+    EventDayInfo eventDayInfo = eventDayInfoRepository.findByEventDate(LocalDate.now()).orElseThrow(()-> new RestApiException(DrawErrorCode.NOT_VALID_DATE));
+    Integer day = eventDayInfo.getEventDay();
+    DrawDailyMessageInfo drawDailyMessageInfo = drawDailyMessageInfoRepository.findByDrawDate(eventDayInfo.getEventDate()).orElseThrow(()-> new RestApiException(DrawErrorCode.NO_DAILY_INFO));
+    String commonScenario = drawDailyMessageInfo.getCommonScenario();
+    return new DrawDailyMessageResponse.DrawDailyScenario(day, commonScenario);
   }
 
   /**

@@ -24,4 +24,11 @@ public class DrawDailyMessageResponse {
   private String loseImage;
   private String commonScenario;
   private LocalDate drawDate;
+
+  @Getter
+  @AllArgsConstructor
+  public static class DrawDailyScenario{
+    private Integer day;
+    private String commonScenario;
+  }
 }

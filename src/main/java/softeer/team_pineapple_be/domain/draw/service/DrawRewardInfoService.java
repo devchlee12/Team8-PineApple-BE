@@ -4,11 +4,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import softeer.team_pineapple_be.domain.draw.domain.DrawRewardInfo;
+import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
 import softeer.team_pineapple_be.domain.draw.repository.DrawRewardInfoRepository;
 import softeer.team_pineapple_be.domain.draw.request.DrawRewardInfoListRequest;
 import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoListResponse;
 import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
 import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
+import softeer.team_pineapple_be.global.exception.RestApiException;
 
 import java.io.IOException;
 import java.util.List;
@@ -48,6 +50,13 @@ public class DrawRewardInfoService {
     public void setDrawRewardInfoList(DrawRewardInfoListRequest request) {
         List<DrawRewardInfo> rewardInfoList = request.getRewards().stream()
                 .map(rewardInfoRequest -> {
+                    if(rewardInfoRequest.getImage() == null){
+                        DrawRewardInfo drawRewardInfo = drawRewardInfoRepository.findById(rewardInfoRequest.getRanking()).orElseThrow(() -> new RestApiException(DrawErrorCode.NO_PRIZE));
+                        return new DrawRewardInfo(rewardInfoRequest.getRanking(),
+                                rewardInfoRequest.getName(),
+                                rewardInfoRequest.getStock(),
+                                drawRewardInfo.getImage());
+                    }
                     String fileName = DRAW_REWAR_INFO_FOLDER + rewardInfoRequest.getRanking() + "/";
                     s3DeleteService.deleteFolder(fileName);
                     String image;

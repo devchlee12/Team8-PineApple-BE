@@ -15,12 +15,13 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class DrawHistoryPageResponse {
     private Integer totalPages;
+    private Long totalItems;
     private List<DrawHistoryResponse> drawHistories;
 
     public static DrawHistoryPageResponse fromDrawHistoryPage(Page<DrawHistory> drawHistoriesPage) {
         List<DrawHistoryResponse> drawHistoryResponseList = drawHistoriesPage.getContent().stream()
                 .map(DrawHistoryResponse::fromDrawHistory)
                 .collect(Collectors.toList());
-        return new DrawHistoryPageResponse(drawHistoriesPage.getTotalPages(), drawHistoryResponseList);
+        return new DrawHistoryPageResponse(drawHistoriesPage.getTotalPages(), drawHistoriesPage.getTotalElements(), drawHistoryResponseList);
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import softeer.team_pineapple_be.domain.draw.domain.DrawHistory;
 import softeer.team_pineapple_be.domain.draw.repository.DrawHistoryRepository;
 import softeer.team_pineapple_be.domain.draw.response.DrawHistoryPageResponse;
@@ -26,6 +27,7 @@ public class DrawHistoryService {
      * @param limit 페이지당 항목 수
      * @return 최신순 정렬 응모 현황 목록
      */
+    @Transactional(readOnly = true)
     public DrawHistoryPageResponse getDrawHistory(int page, int limit, String sort) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by(Sort.Direction.fromString(sort.toUpperCase()), "createAt"));
         Page<DrawHistory> drawHistoryPage = drawHistoryRepository.findAll(pageable);
