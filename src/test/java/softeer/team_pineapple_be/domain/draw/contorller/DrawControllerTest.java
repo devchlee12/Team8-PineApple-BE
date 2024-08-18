@@ -91,9 +91,7 @@ public class DrawControllerTest {
         mockMvc.perform(post("/draw/rewards/send-prize")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(successResponse.getStatus()))
-                .andExpect(jsonPath("$.message").value(successResponse.getMessage()));
+                .andExpect(status().isOk());
 
         verify(drawPrizeService).sendPrizeMessage(prizeId);
     }

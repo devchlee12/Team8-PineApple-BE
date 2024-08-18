@@ -101,7 +101,7 @@ public class QuizServiceTest {
                 "네 번째 질문",       // quizQuestion4
                 LocalDate.now()      // quizDate
         );
-        quizReward = new QuizReward(1, "prizeImageUrl");
+        quizReward = new QuizReward(1, "prizeImageUrl", LocalDate.now());
         member = new Member(phoneNumber);
     }
 

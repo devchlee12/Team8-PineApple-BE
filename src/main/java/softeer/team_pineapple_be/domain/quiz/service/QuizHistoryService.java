@@ -81,7 +81,7 @@ public class QuizHistoryService {
             dau[startDay - 1] = dayMembers.size();
 
             if (startDayMembers == null || startDayMembers.isEmpty()) {
-                retentionRates[startDay - 1][0] = 0;
+                handleEmptyDayMembers(retentionRates, startDay);
                 continue;
             }
 

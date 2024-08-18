@@ -76,10 +76,10 @@ class DrawServiceTest {
         MockitoAnnotations.openMocks(this);
         phoneNumber = "010-1234-5678";
         prizeRank = 1;
-        drawDailyMessageInfo = new DrawDailyMessageInfo(1, "Win message", "Lose message", "Lose scenario", "Win image", "Lose image", LocalDate.now());
+        drawDailyMessageInfo = new DrawDailyMessageInfo("Win message", "Lose message", "Lose scenario", "Win image", "Lose image","Common Scenario", LocalDate.now());
         drawPrize = new DrawPrize(1L, "prize_image_url", true, phoneNumber, null);
         drawPrizeList = new ArrayList<>(List.of(drawPrize));
-        rewardInfo = new DrawRewardInfo(prizeRank, "Prize", 1, drawPrizeList);
+        rewardInfo = new DrawRewardInfo(prizeRank, "Prize", 1 ,"image",drawPrizeList);
     }
 
     @Test
@@ -219,7 +219,7 @@ class DrawServiceTest {
         when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member)); // Member 객체 추가
         when(randomDrawPrizeService.drawPrize()).thenReturn(prizeRank);
         when(drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())).thenReturn(Optional.of(drawDailyMessageInfo));
-        DrawRewardInfo rewardInfo = new DrawRewardInfo(prizeRank, "Prize", 1, new ArrayList<>());
+        DrawRewardInfo rewardInfo = new DrawRewardInfo(prizeRank, "Prize", 1,"image", new ArrayList<>());
         when(drawRewardInfoRepository.findById(prizeRank)).thenReturn(Optional.of(rewardInfo));
         when(drawPrizeRepository.findFirstByDrawRewardInfoAndValid(rewardInfo, true)).thenReturn(Optional.empty()); // 빈 Optional 반환
 

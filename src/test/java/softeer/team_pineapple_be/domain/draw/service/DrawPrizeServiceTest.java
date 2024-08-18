@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import softeer.team_pineapple_be.domain.draw.domain.DrawPrize;
+import softeer.team_pineapple_be.domain.draw.domain.DrawRewardInfo;
 import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
 import softeer.team_pineapple_be.domain.draw.repository.DrawPrizeRepository;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
@@ -48,7 +49,8 @@ class DrawPrizeServiceTest {
     void sendPrizeMessage_WhenOwnerIsValid_SendMessage() {
         // Given
         when(authMemberService.getMemberPhoneNumber()).thenReturn(OWNER_PHONE_NUMBER);
-        DrawPrize prize = new DrawPrize(PRIZE_ID, PRIZE_IMAGE, VALID_STATUS, OWNER_PHONE_NUMBER, null);
+        DrawRewardInfo drawRewardInfo = new DrawRewardInfo(PRIZE_ID.byteValue(), "Prize", 1 ,"image",null);
+        DrawPrize prize = new DrawPrize(PRIZE_ID, PRIZE_IMAGE, VALID_STATUS, OWNER_PHONE_NUMBER, drawRewardInfo);
         when(drawPrizeRepository.findById(PRIZE_ID)).thenReturn(Optional.of(prize));
 
         // When
