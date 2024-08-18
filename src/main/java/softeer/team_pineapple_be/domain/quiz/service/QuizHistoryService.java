@@ -35,15 +35,16 @@ public class QuizHistoryService {
     public QuizHistoryResponse getDayNRetentionAndDAU() {
         determineTotalDays();
         double[][] retentionRates = initializeRetentionRates();
+        Integer[] dau = new Integer[totalDays];
         List<QuizHistory> allHistories = quizHistoryRepository.findAll();
 
 
         Set<Member> allMembers = new HashSet<>();
         Map<Integer, Set<Member>> allMemberMap = createAllMemberMap(allHistories, allMembers);
         Map<Integer, Set<Member>> dayMemberMap = createDayMemberMap(allHistories);
-        calculateRetentionRates(retentionRates, allMemberMap, dayMemberMap);
+        calculateRetentionRates(retentionRates, dau, allMemberMap, dayMemberMap);
 
-        return new QuizHistoryResponse(retentionRates);
+        return new QuizHistoryResponse(retentionRates, dau);
     }
 
     private void determineTotalDays(){
@@ -56,20 +57,19 @@ public class QuizHistoryService {
     }
 
     private double[][] initializeRetentionRates() {
-        double[][] retentionRates = new double[totalDays][totalDays +1];
+        double[][] retentionRates = new double[totalDays][totalDays];
         initializeArray(retentionRates, -1.0);
         return retentionRates;
     }
 
-    private void calculateRetentionRates(double[][] retentionRates, Map<Integer, Set<Member>> allMemberMap, Map<Integer, Set<Member>> dayMemberMap) {
+    private void calculateRetentionRates(double[][] retentionRates, Integer[] dau, Map<Integer, Set<Member>> allMemberMap, Map<Integer, Set<Member>> dayMemberMap) {
         for (int startDay = 1; startDay <= totalDays; startDay++) {
             Set<Member> startDayMembers = getMembersForDay(startDay, allMemberMap);
             Set<Member> dayMembers = getMembersForDay(startDay, dayMemberMap);
             if (dayMembers == null || dayMembers.isEmpty()) {
-                retentionRates[startDay - 1][1] = 0;
                 continue;
             }
-            retentionRates[startDay - 1][1] = dayMembers.size();
+            dau[startDay-1] = dayMembers.size();
 
             if (startDayMembers == null || startDayMembers.isEmpty()) {
                 retentionRates[startDay - 1][0] = 0;
@@ -80,11 +80,11 @@ public class QuizHistoryService {
             for (int targetDay = startDay + 1; targetDay <= totalDays; targetDay++) {
                 Set<Member> targetDayMembers = getMembersForDay(targetDay, dayMemberMap);
                 if (targetDayMembers == null || targetDayMembers.isEmpty()) {
-                    retentionRates[startDay - 1][targetDay] = 0.0;
+                    retentionRates[startDay - 1][targetDay-1] = 0.0;
                     continue;
                 }
                 double retentionRate = calculateRetentionRate(startDayMembers, targetDayMembers);
-                retentionRates[startDay - 1][targetDay] = retentionRate;
+                retentionRates[startDay - 1][targetDay-1] = retentionRate;
             }
         }
     }
