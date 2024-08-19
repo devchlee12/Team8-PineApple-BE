@@ -13,7 +13,7 @@ import softeer.team_pineapple_be.domain.draw.domain.DrawRewardInfo;
 import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
 import softeer.team_pineapple_be.domain.draw.repository.DrawPrizeRepository;
 import softeer.team_pineapple_be.domain.draw.repository.DrawRewardInfoRepository;
-import softeer.team_pineapple_be.domain.draw.response.DrawRewardImageResponse;
+import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoResponse;
 import softeer.team_pineapple_be.domain.draw.response.SendPrizeResponse;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
@@ -33,14 +33,15 @@ public class DrawPrizeService {
   private final S3UploadService s3UploadService;
   private final S3DeleteService s3DeleteService;
   private final DrawRewardInfoRepository drawRewardInfoRepository;
+  private final DrawProbabilityService drawProbabilityService;
 
   /**
    * 응모 경품 이미지를 반환하는 메서드
    */
   @Transactional(readOnly = true)
-  public List<DrawRewardImageResponse> getDrawRewardImages() {
+  public List<DrawRewardInfoResponse> getDrawRewardImages() {
     List<DrawRewardInfo> all = drawRewardInfoRepository.findAll();
-    return all.stream().map(DrawRewardImageResponse::of).toList();
+    return all.stream().map(info -> DrawRewardInfoResponse.of(info, drawProbabilityService)).toList();
   }
 
   /**

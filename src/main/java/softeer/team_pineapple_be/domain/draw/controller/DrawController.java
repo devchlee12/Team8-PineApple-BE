@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.draw.request.SendPrizeRequest;
 import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawResponse;
-import softeer.team_pineapple_be.domain.draw.response.DrawRewardImageResponse;
+import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoResponse;
 import softeer.team_pineapple_be.domain.draw.response.SendPrizeResponse;
 import softeer.team_pineapple_be.domain.draw.service.DrawPrizeService;
 import softeer.team_pineapple_be.domain.draw.service.DrawService;
@@ -40,10 +40,16 @@ public class DrawController {
     return ResponseEntity.ok(drawService.enterDraw());
   }
 
-  @Operation(summary = "메인 페이지에서 사용할 경품 이미지 받기")
-  @GetMapping("/prize-images")
-  public ResponseEntity<List<DrawRewardImageResponse>> getDrawPrizeImages() {
-    List<DrawRewardImageResponse> drawRewardImages = drawPrizeService.getDrawRewardImages();
+  @Operation(summary = "해당 날짜와 응모 시나리오 조회")
+  @GetMapping("/scenario")
+  public ResponseEntity<DrawDailyMessageResponse.DrawDailyScenario> getDrawDailyScenario() {
+    return ResponseEntity.ok(drawService.getDrawDailyScenario());
+  }
+
+  @Operation(summary = "메인 페이지에서 사용할 경품 정보 받기")
+  @GetMapping("/prize-infos")
+  public ResponseEntity<List<DrawRewardInfoResponse>> getDrawPrizeImages() {
+    List<DrawRewardInfoResponse> drawRewardImages = drawPrizeService.getDrawRewardImages();
     return ResponseEntity.ok(drawRewardImages);
   }
 
@@ -53,11 +59,5 @@ public class DrawController {
   public ResponseEntity<SendPrizeResponse> sendPrize(@Valid @RequestBody SendPrizeRequest request) {
     SendPrizeResponse sendPrizeResponse = drawPrizeService.sendPrizeMessage(request.getPrizeId());
     return ResponseEntity.ok(sendPrizeResponse);
-  }
-
-  @Operation(summary = "해당 날짜와 응모 시나리오 조회")
-  @GetMapping("/scenario")
-  public ResponseEntity<DrawDailyMessageResponse.DrawDailyScenario> getDrawDailyScenario(){
-    return ResponseEntity.ok(drawService.getDrawDailyScenario());
   }
 }
