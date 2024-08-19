@@ -18,4 +18,6 @@ public class RandomUtils {
   public Integer getSecureRandomNumberLessThen(int max) {
     return secureRandom.nextInt(max);
   }
+
+  public Integer getBase56Index(){return secureRandom.nextInt(0,56);}
 }

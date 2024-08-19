@@ -62,7 +62,6 @@ public class DrawProbabilityService {
   @Transactional
   public void setDrawProbability(DrawProbabilityRequest request) {
     Map<Byte, Integer> probabilities = request.getProbabilities();
-    drawProbabilityRepository.deleteAll();
     List<DrawProbability> drawProbabilities = probabilities.entrySet()
                                                            .stream()
                                                            .map(entry -> new DrawProbability(entry.getKey(),

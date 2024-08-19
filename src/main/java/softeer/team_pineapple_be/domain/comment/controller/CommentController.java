@@ -7,9 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 import java.time.LocalDate;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -17,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.comment.request.CommentLikeRequest;
 import softeer.team_pineapple_be.domain.comment.request.CommentRequest;
 import softeer.team_pineapple_be.domain.comment.response.CommentPageResponse;
+import softeer.team_pineapple_be.domain.comment.response.CommentResponse;
 import softeer.team_pineapple_be.domain.comment.service.CommentService;
 import softeer.team_pineapple_be.global.auth.annotation.Auth;
 import softeer.team_pineapple_be.global.common.response.SuccessResponse;
@@ -57,5 +56,11 @@ public class CommentController {
       return ResponseEntity.ok(commentService.getCommentsSortedByLikes(page, date));
     }
     return ResponseEntity.ok(commentService.getCommentsSortedByRecent(page, date));
+  }
+
+  @Operation(summary = "하나의 댓글을 가져오는 api")
+  @GetMapping("/commentId")
+  public ResponseEntity<CommentResponse> getComment(@RequestParam(name = "id") Long id) {
+    return ResponseEntity.ok(commentService.getCommentById(id));
   }
 }

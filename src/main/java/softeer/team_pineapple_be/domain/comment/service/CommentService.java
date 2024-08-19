@@ -25,6 +25,7 @@ import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
 import softeer.team_pineapple_be.domain.comment.request.CommentLikeRequest;
 import softeer.team_pineapple_be.domain.comment.request.CommentRequest;
 import softeer.team_pineapple_be.domain.comment.response.CommentPageResponse;
+import softeer.team_pineapple_be.domain.comment.response.CommentResponse;
 import softeer.team_pineapple_be.domain.member.domain.Member;
 import softeer.team_pineapple_be.domain.member.exception.MemberErrorCode;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
@@ -135,6 +136,12 @@ public class CommentService {
     comment.increaseLikeCount();
     likeRedisService.addLike(comment.getId());
     commentLikeRepository.save(new CommentLike(likeId));
+  }
+
+  @Transactional
+  public CommentResponse getCommentById(Long id) {
+    Comment comment = commentRepository.findById(id).orElseThrow(()-> new RestApiException(CommentErrorCode.NO_COMMENT));
+    return CommentResponse.fromComment(comment, likeRedisService);
   }
 
   /**

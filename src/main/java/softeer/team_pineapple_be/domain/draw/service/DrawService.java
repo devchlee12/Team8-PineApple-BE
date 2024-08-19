@@ -70,7 +70,7 @@ public class DrawService {
     DrawDailyMessageInfo dailyMessageInfo = drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())
                                                                           .orElseThrow(() -> new RestApiException(
                                                                               DrawErrorCode.NOT_VALID_DATE)); // 예외처리
-    if (rewardInfo.getRanking() == 0 || rewardInfo.getStock() == 0) {
+    if (rewardInfo.getRanking() == 0 || rewardInfo.getRanking() == 1 || rewardInfo.getStock() == 0) {
       LocalDate today = LocalDate.now();
       LocalDateTime startOfDay = today.atStartOfDay();
       LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
