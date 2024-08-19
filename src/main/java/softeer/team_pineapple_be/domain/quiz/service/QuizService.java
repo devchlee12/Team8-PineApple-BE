@@ -105,10 +105,11 @@ public class QuizService {
       throw new RestApiException(QuizErrorCode.ALREADY_WIN_REWARD_TODAY);
     }
     Integer participantOrder = fcfsService.getParticipantOrder(participantId);
-    QuizReward quizReward = quizRewardRepository.findBySuccessOrder(participantOrder)
+    LocalDate localDate = determineQuizDate();
+    QuizReward quizReward = quizRewardRepository.findBySuccessOrderAndQuizDate(participantOrder, localDate)
                                                 .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_REWARD));
     quizReward.invalidate();
-    messageService.sendPrizeImage(quizReward.getRewardImage());
+    //    messageService.sendPrizeImage(quizReward.getRewardImage());
     quizRedisService.saveRewardWin(authMemberService.getMemberPhoneNumber());
   }
 

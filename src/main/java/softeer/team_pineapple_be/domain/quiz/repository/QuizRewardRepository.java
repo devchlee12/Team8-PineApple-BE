@@ -11,6 +11,7 @@ import softeer.team_pineapple_be.domain.quiz.domain.QuizReward;
  * 퀴즈 경품 리포지토리
  */
 public interface QuizRewardRepository extends CrudRepository<QuizReward, Long> {
-  Optional<QuizReward> findBySuccessOrder(Integer successOrder);
   void deleteAllByQuizDate(LocalDate quizDate);
+
+  Optional<QuizReward> findBySuccessOrderAndQuizDate(Integer successOrder, LocalDate quizDate);
 }
