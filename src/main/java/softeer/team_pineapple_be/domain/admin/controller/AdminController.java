@@ -3,6 +3,7 @@ package softeer.team_pineapple_be.domain.admin.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -101,8 +102,8 @@ public class AdminController {
 
   @Operation(summary = "일자별 응모 정보 등록/수정")
   @PutMapping("/draw/daily-info")
-  public ResponseEntity<SuccessResponse> updateDrawDailyMessageInfo(
-      @ModelAttribute DrawDailyMessageModifyRequest drawDailyMessageModifyRequest) {
+  public ResponseEntity<SuccessResponse> updateDrawDailyMessageInfo (
+      @ModelAttribute DrawDailyMessageModifyRequest drawDailyMessageModifyRequest){
     drawService.updateOrSaveDailyMessageInfo(drawDailyMessageModifyRequest);
     return ResponseEntity.ok(new SuccessResponse());
   }

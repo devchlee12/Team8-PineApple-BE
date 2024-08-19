@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.admin.domain.EventDayInfo;
 import softeer.team_pineapple_be.domain.admin.repisotory.EventDayInfoRepository;
+import softeer.team_pineapple_be.domain.comment.exception.CommentErrorCode;
 import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
 import softeer.team_pineapple_be.domain.draw.domain.*;
 import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
@@ -27,6 +28,7 @@ import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
 import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
+import softeer.team_pineapple_be.global.cloud.service.exception.S3ErrorCode;
 import softeer.team_pineapple_be.global.exception.RestApiException;
 
 /**
@@ -115,33 +117,26 @@ public class DrawService {
    */
   @Transactional
   public void updateOrSaveDailyMessageInfo(DrawDailyMessageModifyRequest drawDailyMessageModifyRequest) {
-    String winImageFolder = DAILY_DRAW_WIN_FOLDER + drawDailyMessageModifyRequest.getDrawDate() + "/";
-    String loseImageFolder = DAILY_DRAW_LOSE_FOLDER + drawDailyMessageModifyRequest.getDrawDate() + "/";
-    Optional<DrawDailyMessageInfo> byDrawDate =
-        drawDailyMessageInfoRepository.findByDrawDate(drawDailyMessageModifyRequest.getDrawDate());
-    if (byDrawDate.isPresent()) { // 수정
-      DrawDailyMessageInfo dailyMessageInfo = byDrawDate.get();
-      s3DeleteService.deleteFolder(winImageFolder);
-      s3DeleteService.deleteFolder(loseImageFolder);
-      ImageUrls imageUrls = uploadDrawInfoImages(drawDailyMessageModifyRequest, winImageFolder, loseImageFolder);
-      dailyMessageInfo.update(drawDailyMessageModifyRequest.getWinMessage(),
-          drawDailyMessageModifyRequest.getLoseMessage(), drawDailyMessageModifyRequest.getLoseScenario(),
-          imageUrls.winImageUrl, imageUrls.loseImageUrl, drawDailyMessageModifyRequest.getCommonScenario(),
-          drawDailyMessageModifyRequest.getDrawDate());
-      return;
+    LocalDate drawDate = drawDailyMessageModifyRequest.getDrawDate();
+    String winImageFolder = DAILY_DRAW_WIN_FOLDER + drawDate + "/";
+    String loseImageFolder = DAILY_DRAW_LOSE_FOLDER + drawDate + "/";
+
+    Optional<DrawDailyMessageInfo> optionalDailyMessageInfo =
+            drawDailyMessageInfoRepository.findByDrawDate(drawDate);
+
+    try{
+      if (!updateOrSaveDailyMessageInfoCheckTwoExists(drawDailyMessageModifyRequest)) { // 둘 다 없는 경우
+        handleUpdateOrSaveForMissingImages(optionalDailyMessageInfo, drawDailyMessageModifyRequest, winImageFolder, loseImageFolder);
+      } else if (!updateOrSaveDailyMessageInfoCheckWinImageExists(drawDailyMessageModifyRequest)) { // 루스 이미지만 있는 경우
+        handleUpdateOrSaveForMissingWinImage(optionalDailyMessageInfo, drawDailyMessageModifyRequest, loseImageFolder);
+      } else if (!updateOrSaveDailyMessageInfoCheckLoseImageExists(drawDailyMessageModifyRequest)) { // 윈 이미지만 있는 경우
+        handleUpdateOrSaveForMissingLoseImage(optionalDailyMessageInfo, drawDailyMessageModifyRequest, winImageFolder);
+      } else { // 둘 다 있는 경우
+        handleUpdateOrSaveForBothImages(optionalDailyMessageInfo, drawDailyMessageModifyRequest, winImageFolder, loseImageFolder);
+      }
+    }catch (IOException e){
+      throw new RestApiException(S3ErrorCode.IMAGE_FAILURE);
     }
-    ImageUrls imageUrls = uploadDrawInfoImages(drawDailyMessageModifyRequest, winImageFolder, loseImageFolder);
-    drawDailyMessageInfoRepository.save(DrawDailyMessageInfo.builder()
-                                                            .winMessage(drawDailyMessageModifyRequest.getWinMessage())
-                                                            .loseMessage(drawDailyMessageModifyRequest.getLoseMessage())
-                                                            .loseScenario(
-                                                                drawDailyMessageModifyRequest.getLoseScenario())
-                                                            .winImage(imageUrls.winImageUrl)
-                                                            .loseImage(imageUrls.loseImageUrl)
-                                                            .commonScenario(
-                                                                drawDailyMessageModifyRequest.getCommonScenario())
-                                                            .drawDate(drawDailyMessageModifyRequest.getDrawDate())
-                                                            .build());
   }
 
 
@@ -206,20 +201,89 @@ public class DrawService {
     return prize.getId();
   }
 
-  private ImageUrls uploadDrawInfoImages(DrawDailyMessageModifyRequest drawDailyMessageModifyRequest,
-      String winImageFolder, String loseImageFolder) {
-    String winImageUrl;
-    String loseImageUrl;
-    try {
-      winImageUrl = s3UploadService.saveFile(drawDailyMessageModifyRequest.getWinImage(), winImageFolder);
-    } catch (IOException e) {
-      throw new RestApiException(DrawErrorCode.DAILY_INFO_WIN_IMAGE_UPLOAD_FAILED);
+
+  private void handleUpdateOrSaveForMissingImages(Optional<DrawDailyMessageInfo> optionalDailyMessageInfo,
+                                                  DrawDailyMessageModifyRequest request, String winImageFolder, String loseImageFolder) throws IOException {
+    if (optionalDailyMessageInfo.isPresent()) {
+      DrawDailyMessageInfo dailyMessageInfo = optionalDailyMessageInfo.get();
+      updateDailyMessageInfo(dailyMessageInfo, request, new ImageUrls(dailyMessageInfo.getWinImage(), dailyMessageInfo.getLoseImage()));
+    } else {
+      throw new RestApiException(DrawErrorCode.NO_DAILY_INFO);
     }
-    try {
-      loseImageUrl = s3UploadService.saveFile(drawDailyMessageModifyRequest.getLoseImage(), loseImageFolder);
-    } catch (IOException e) {
-      throw new RestApiException(DrawErrorCode.DAILY_INFO_LOSE_IMAGE_UPLOAD_FAILED);
+  }
+
+  private void handleUpdateOrSaveForMissingWinImage(Optional<DrawDailyMessageInfo> optionalDailyMessageInfo,
+                                                    DrawDailyMessageModifyRequest request, String loseImageFolder) throws IOException {
+    if (optionalDailyMessageInfo.isPresent()) {
+      DrawDailyMessageInfo dailyMessageInfo = optionalDailyMessageInfo.get();
+      s3DeleteService.deleteFolder(loseImageFolder);
+      String loseImageUrl = s3UploadService.saveFile(request.getLoseImage(), loseImageFolder);
+      updateDailyMessageInfo(dailyMessageInfo, request, new ImageUrls(dailyMessageInfo.getWinImage(), loseImageUrl));
+    } else {
+      throw new RestApiException(DrawErrorCode.NO_DAILY_INFO);
     }
+  }
+
+  private void handleUpdateOrSaveForMissingLoseImage(Optional<DrawDailyMessageInfo> optionalDailyMessageInfo,
+                                                     DrawDailyMessageModifyRequest request, String winImageFolder) throws IOException {
+    if (optionalDailyMessageInfo.isPresent()) {
+      DrawDailyMessageInfo dailyMessageInfo = optionalDailyMessageInfo.get();
+      s3DeleteService.deleteFolder(winImageFolder);
+      String winImageUrl = s3UploadService.saveFile(request.getWinImage(), winImageFolder);
+      updateDailyMessageInfo(dailyMessageInfo, request, new ImageUrls(winImageUrl, dailyMessageInfo.getLoseImage()));
+      return;
+    }
+    throw new RestApiException(DrawErrorCode.NO_DAILY_INFO);
+
+  }
+
+  private void handleUpdateOrSaveForBothImages(Optional<DrawDailyMessageInfo> optionalDailyMessageInfo,
+                                               DrawDailyMessageModifyRequest request, String winImageFolder, String loseImageFolder) throws IOException {
+    if (optionalDailyMessageInfo.isPresent()) {
+      DrawDailyMessageInfo dailyMessageInfo = optionalDailyMessageInfo.get();
+      deleteFolders(winImageFolder, loseImageFolder);
+      ImageUrls imageUrls = uploadDrawInfoImages(request, winImageFolder, loseImageFolder);
+      updateDailyMessageInfo(dailyMessageInfo, request, imageUrls);
+      return;
+    }
+    ImageUrls imageUrls = uploadDrawInfoImages(request, winImageFolder, loseImageFolder);
+    drawDailyMessageInfoRepository.save(DrawDailyMessageInfo.builder()
+            .winMessage(request.getWinMessage())
+            .loseMessage(request.getLoseMessage())
+            .loseScenario(request.getLoseScenario())
+            .winImage(imageUrls.winImageUrl)
+            .loseImage(imageUrls.loseImageUrl)
+            .commonScenario(request.getCommonScenario())
+            .drawDate(request.getDrawDate())
+            .build());
+  }
+
+  private void updateDailyMessageInfo(DrawDailyMessageInfo dailyMessageInfo,
+                                      DrawDailyMessageModifyRequest request, ImageUrls imageUrls) {
+    dailyMessageInfo.update(request.getWinMessage(), request.getLoseMessage(), request.getLoseScenario(),
+            imageUrls.winImageUrl, imageUrls.loseImageUrl, request.getCommonScenario(), request.getDrawDate());
+  }
+
+  private void deleteFolders(String winImageFolder, String loseImageFolder) {
+    s3DeleteService.deleteFolder(winImageFolder);
+    s3DeleteService.deleteFolder(loseImageFolder);
+  }
+
+  private boolean updateOrSaveDailyMessageInfoCheckTwoExists(DrawDailyMessageModifyRequest request) {
+    return request.getWinImage() != null || request.getLoseImage() != null;
+  }
+
+  private boolean updateOrSaveDailyMessageInfoCheckWinImageExists(DrawDailyMessageModifyRequest request) {
+    return request.getWinImage() != null;
+  }
+
+  private boolean updateOrSaveDailyMessageInfoCheckLoseImageExists(DrawDailyMessageModifyRequest request) {
+    return request.getLoseImage() != null;
+  }
+
+  private ImageUrls uploadDrawInfoImages(DrawDailyMessageModifyRequest request, String winImageFolder, String loseImageFolder) throws IOException {
+    String winImageUrl = s3UploadService.saveFile(request.getWinImage(), winImageFolder);
+    String loseImageUrl = s3UploadService.saveFile(request.getLoseImage(), loseImageFolder);
     return new ImageUrls(winImageUrl, loseImageUrl);
   }
 

@@ -167,6 +167,13 @@ public class QuizService {
       return;
     }
     QuizInfo quizInfo = quizInfoByDate.get();
+    QuizContent quizContent = quizContentRepository.findByQuizDate(day)
+            .orElseThrow(
+                    () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
+    if(quizInfoModifyRequest.getQuizImage() == null){
+      quizInfoRepository.save(new QuizInfo(quizInfo.getId(), quizContent, quizInfoModifyRequest.getAnswerNum(), quizInfo.getQuizImage()));
+      return;
+    }
     s3DeleteService.deleteFolder(fileName);
     imageUrl = uploadImageToS3(quizInfoModifyRequest, fileName);
     quizInfo.update(quizInfoModifyRequest.getAnswerNum(), imageUrl);
@@ -275,6 +282,8 @@ public class QuizService {
     try {
       imageUrl = s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName);
     } catch (IOException e) {
+      throw new RestApiException(QuizErrorCode.NO_QUIZ_IMAGE);
+    } catch (RuntimeException e) {
       throw new RestApiException(QuizErrorCode.NO_QUIZ_IMAGE);
     }
     return imageUrl;

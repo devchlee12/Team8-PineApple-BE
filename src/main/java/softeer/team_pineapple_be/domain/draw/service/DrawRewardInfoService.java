@@ -48,6 +48,7 @@ public class DrawRewardInfoService {
      */
     @Transactional
     public void setDrawRewardInfoList(DrawRewardInfoListRequest request) {
+        drawRewardInfoRepository.deleteAll();
         List<DrawRewardInfo> rewardInfoList = request.getRewards().stream()
                 .map(rewardInfoRequest -> {
                     if(rewardInfoRequest.getImage() == null){
