@@ -63,7 +63,7 @@ public class ShortenUrlService {
   }
 
   private String buildOriginalUrl(Long commentId) {
-    return "https://casper-event.store/event/comments/commentId/" + commentId;
+    return "event/comments/commentId/" + commentId;
   }
 
   private Comment findTodayComment() {
