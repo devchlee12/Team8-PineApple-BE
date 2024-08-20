@@ -9,6 +9,9 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 멀티파트 파일으로 형변환을 해주는 클래스
+ */
 @RequiredArgsConstructor
 public class MultipartFileWrapper implements MultipartFile {
     private final InputStream inputStream;

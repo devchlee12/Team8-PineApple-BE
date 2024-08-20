@@ -13,7 +13,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.domain.admin.request.EventScheduleUpdateRequest;
 import softeer.team_pineapple_be.domain.admin.response.EventScheduleResponse;
+import softeer.team_pineapple_be.domain.admin.response.TopPrizeWinnerResponse;
 import softeer.team_pineapple_be.domain.admin.service.EventDayInfoService;
+import softeer.team_pineapple_be.domain.admin.service.TopPrizeWinnerService;
 import softeer.team_pineapple_be.domain.draw.request.DrawDailyMessageModifyRequest;
 import softeer.team_pineapple_be.domain.draw.request.DrawPrizeRequest;
 import softeer.team_pineapple_be.domain.draw.request.DrawProbabilityRequest;
@@ -53,6 +55,7 @@ public class AdminController {
   private final QuizHistoryService quizHistoryService;
   private final EventDayInfoService eventDayInfoService;
   private final DrawHistoryService drawHistoryService;
+  private final TopPrizeWinnerService topPrizeWinnerService;
 
   @Operation(summary = "날짜에 해당하는 퀴즈 정보 가져오기")
   @GetMapping("/quiz/{day}")
@@ -177,5 +180,11 @@ public class AdminController {
           @RequestParam(name = "sort", required = false, defaultValue = "desc") String sort){
     return ResponseEntity.ok(drawHistoryService.getDrawHistory(page, limit, sort));
 
+  }
+
+  @Operation(summary = "1등 추첨")
+  @GetMapping("/topPrizeWinner")
+  public ResponseEntity<TopPrizeWinnerResponse> getTopPrizeWinner(){
+    return ResponseEntity.ok(topPrizeWinnerService.getTopPrizeWinner());
   }
 }

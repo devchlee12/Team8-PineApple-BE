@@ -20,4 +20,6 @@ public class RandomUtils {
   }
 
   public Integer getBase56Index(){return secureRandom.nextInt(0,56);}
+
+  public Long getPositiveNumber(long max){ return secureRandom.nextLong(1,max+1);}
 }

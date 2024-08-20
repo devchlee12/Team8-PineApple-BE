@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * S3 파일 삭제를 담당하는 클래스
+ */
 @RequiredArgsConstructor
 @Service
 public class S3DeleteService {
@@ -21,6 +24,10 @@ public class S3DeleteService {
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
 
+    /**
+     * folder경로에 대한 전체 삭제
+     * @param folderName 삭제하고자 하는 폴더명
+     */
     public void deleteFolder(String folderName) {
         ListObjectsV2Request request = new ListObjectsV2Request()
                 .withBucketName(bucket)

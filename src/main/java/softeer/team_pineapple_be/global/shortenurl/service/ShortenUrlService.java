@@ -17,8 +17,12 @@ import softeer.team_pineapple_be.global.exception.RestApiException;
 import softeer.team_pineapple_be.global.shortenurl.domain.ShortenUrl;
 import softeer.team_pineapple_be.global.shortenurl.exception.ShortenUrlErrorCode;
 import softeer.team_pineapple_be.global.shortenurl.repository.ShortenUrlRepository;
+import softeer.team_pineapple_be.global.shortenurl.response.ShortenOriginalUrlResponse;
 import softeer.team_pineapple_be.global.shortenurl.response.ShortenUrlResponse;
 
+/**
+ * 단축 url 처리를 담당하는 클래스
+ */
 @Service
 @RequiredArgsConstructor
 public class ShortenUrlService {
@@ -31,6 +35,10 @@ public class ShortenUrlService {
   private final CommentRepository commentRepository;
   private final AuthMemberService authMemberService;
 
+  /**
+   * 단축 url을 생성해주는 메서드
+   * @return 생성된 단축 url
+   */
   @Transactional
   public ShortenUrlResponse getShortenUrl() {
     Comment comment = findTodayComment();
@@ -41,12 +49,17 @@ public class ShortenUrlService {
                                .orElseGet(() -> new ShortenUrlResponse(generateAndSaveShortenUrl(originalUrl)));
   }
 
+  /**
+   * 단축 url이 들어왔을 때 원본 url을 반환하는 메서드
+   * @param shortenUrl 요청된 단축 url
+   * @return 반환하고자 하는 url
+   */
   @Transactional
-  public String redirectUrl(String shortenUrl) {
+  public ShortenOriginalUrlResponse redirectUrl(String shortenUrl) {
     ShortenUrl shortenUrlEntity = shortenUrlRepository.findByShortenUrl(shortenUrl)
                                                       .orElseThrow(
                                                           () -> new RestApiException(ShortenUrlErrorCode.NOT_EXISTS));
-    return shortenUrlEntity.getOriginalUrl();
+    return new ShortenOriginalUrlResponse(shortenUrlEntity.getOriginalUrl());
   }
 
   private String buildOriginalUrl(Long commentId) {

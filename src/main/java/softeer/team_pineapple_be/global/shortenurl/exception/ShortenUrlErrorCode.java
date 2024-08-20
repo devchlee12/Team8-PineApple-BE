@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import softeer.team_pineapple_be.global.exception.ErrorCode;
 import org.springframework.http.HttpStatus;
 
+/**
+ * 단축 url 에러 코드
+ */
 @Getter
 @RequiredArgsConstructor
 public enum ShortenUrlErrorCode implements ErrorCode {
