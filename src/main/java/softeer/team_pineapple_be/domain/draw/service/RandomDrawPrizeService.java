@@ -30,10 +30,25 @@ public class RandomDrawPrizeService {
   }
 
   /**
-   * 추첨 배열 초기화
+   * 빈 초기화 될 때 추첨 배열 초기화
    */
   @PostConstruct
   public void init() {
+    initializeProbabilityArray();
+  }
+
+  /**
+   * 추첨 확률 바뀌었을 때 추첨 배열 다시 초기화
+   */
+  public void reinitializeProbabilityArray() {
+    initializeProbabilityArray();
+  }
+
+
+  /**
+   * 추첨 배열 초기화
+   */
+  private void initializeProbabilityArray() {
     List<DrawProbability> probabilityList = drawProbabilityRepository.findAll();
     int probabilitySum = 0;
     for (DrawProbability drawProbability : probabilityList) {

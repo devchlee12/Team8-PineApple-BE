@@ -1,9 +1,16 @@
 package softeer.team_pineapple_be.domain.admin.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -20,8 +27,17 @@ import softeer.team_pineapple_be.domain.draw.request.DrawDailyMessageModifyReque
 import softeer.team_pineapple_be.domain.draw.request.DrawPrizeRequest;
 import softeer.team_pineapple_be.domain.draw.request.DrawProbabilityRequest;
 import softeer.team_pineapple_be.domain.draw.request.DrawRewardInfoListRequest;
-import softeer.team_pineapple_be.domain.draw.response.*;
-import softeer.team_pineapple_be.domain.draw.service.*;
+import softeer.team_pineapple_be.domain.draw.response.DrawDailyMessageResponse;
+import softeer.team_pineapple_be.domain.draw.response.DrawHistoryPageResponse;
+import softeer.team_pineapple_be.domain.draw.response.DrawProbabilityResponse;
+import softeer.team_pineapple_be.domain.draw.response.DrawRemainingResponse;
+import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoListResponse;
+import softeer.team_pineapple_be.domain.draw.service.DrawHistoryService;
+import softeer.team_pineapple_be.domain.draw.service.DrawPrizeService;
+import softeer.team_pineapple_be.domain.draw.service.DrawProbabilityService;
+import softeer.team_pineapple_be.domain.draw.service.DrawRewardInfoService;
+import softeer.team_pineapple_be.domain.draw.service.DrawService;
+import softeer.team_pineapple_be.domain.draw.service.RandomDrawPrizeService;
 import softeer.team_pineapple_be.domain.quiz.dao.QuizDao;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizInfo;
 import softeer.team_pineapple_be.domain.quiz.exception.QuizErrorCode;
@@ -56,6 +72,21 @@ public class AdminController {
   private final EventDayInfoService eventDayInfoService;
   private final DrawHistoryService drawHistoryService;
   private final TopPrizeWinnerService topPrizeWinnerService;
+  private final RandomDrawPrizeService randomDrawPrizeService;
+
+  @Operation(summary = "응모 상품 수정")
+  @PutMapping("/draw-reward-info")
+  public ResponseEntity<SuccessResponse> addDrawRewardInfoList(
+      @ModelAttribute DrawRewardInfoListRequest drawRewardInfoListRequest) {
+    drawRewardInfoService.setDrawRewardInfoList(drawRewardInfoListRequest);
+    return ResponseEntity.ok(new SuccessResponse());
+  }
+
+  @Operation(summary = "응모 상품 조회")
+  @GetMapping("/draw-reward-info")
+  public ResponseEntity<DrawRewardInfoListResponse> getAllDrawRewardInfo() {
+    return ResponseEntity.ok(drawRewardInfoService.getAllDrawRewardInfo());
+  }
 
   @Operation(summary = "날짜에 해당하는 퀴즈 정보 가져오기")
   @GetMapping("/quiz/{day}")
@@ -79,6 +110,28 @@ public class AdminController {
     return ResponseEntity.ok(dailyMessageInfo);
   }
 
+  @Operation(summary = "응모 현황 조회")
+  @GetMapping("/draw-history")
+  public ResponseEntity<DrawHistoryPageResponse> getDrawHistory(
+      @RequestParam(name = "page", required = false, defaultValue = "0") Integer page,
+      @RequestParam(name = "limit", required = false, defaultValue = "10") Integer limit,
+      @RequestParam(name = "sort", required = false, defaultValue = "desc") String sort) {
+    return ResponseEntity.ok(drawHistoryService.getDrawHistory(page, limit, sort));
+
+  }
+
+  @Operation(summary = "응모 당첨 확률 조회")
+  @GetMapping("/draw-probability")
+  public ResponseEntity<DrawProbabilityResponse> getDrawProbability() {
+    return ResponseEntity.ok(drawProbabilityService.getDrawProbability());
+  }
+
+  @Operation(summary = "이벤트 현황 잔여 상품 개수 조회")
+  @GetMapping("/draw-remaining")
+  public ResponseEntity<DrawRemainingResponse> getDrawRemaining() {
+    return ResponseEntity.ok(drawService.getDrawRemaining());
+  }
+
   @Operation(summary = "이벤트 스케줄 확인")
   @GetMapping("/event-schedules")
   public ResponseEntity<List<EventScheduleResponse>> getEventSchedules() {
@@ -86,6 +139,25 @@ public class AdminController {
     return ResponseEntity.ok(eventSchedules);
   }
 
+  @Operation(summary = "이벤트 지표 조회")
+  @GetMapping("/indicator")
+  public ResponseEntity<QuizHistoryResponse> getRetentionMatrix() {
+    return ResponseEntity.ok(quizHistoryService.getDayNRetentionAndDAU());
+  }
+
+  @Operation(summary = "1등 추첨")
+  @GetMapping("/topPrizeWinner")
+  public ResponseEntity<TopPrizeWinnerResponse> getTopPrizeWinner() {
+    return ResponseEntity.ok(topPrizeWinnerService.getTopPrizeWinner());
+  }
+
+  @Operation(summary = "응모 당첨 확률 수정")
+  @PutMapping("/draw-probability")
+  public ResponseEntity<SuccessResponse> setDrawProbability(@RequestBody DrawProbabilityRequest request) {
+    drawProbabilityService.setDrawProbability(request);
+    randomDrawPrizeService.reinitializeProbabilityArray();
+    return ResponseEntity.ok(new SuccessResponse());
+  }
 
   @Operation(summary = "퀴즈 등록/수정하기")
   @PutMapping("/quiz/{day}")
@@ -105,8 +177,8 @@ public class AdminController {
 
   @Operation(summary = "일자별 응모 정보 등록/수정")
   @PutMapping("/draw/daily-info")
-  public ResponseEntity<SuccessResponse> updateDrawDailyMessageInfo (
-      @ModelAttribute DrawDailyMessageModifyRequest drawDailyMessageModifyRequest){
+  public ResponseEntity<SuccessResponse> updateDrawDailyMessageInfo(
+      @ModelAttribute DrawDailyMessageModifyRequest drawDailyMessageModifyRequest) {
     drawService.updateOrSaveDailyMessageInfo(drawDailyMessageModifyRequest);
     return ResponseEntity.ok(new SuccessResponse());
   }
@@ -132,59 +204,5 @@ public class AdminController {
       @ModelAttribute QuizRewardUploadRequest quizRewardUploadRequest) {
     quizService.uploadQuizRewardZipFile(quizRewardUploadRequest.getFile(), quizRewardUploadRequest.getQuizDate());
     return ResponseEntity.ok(new SuccessResponse());
-  }
-
-  @Operation(summary = "응모 당첨 확률 조회")
-  @GetMapping("/draw-probability")
-  public ResponseEntity<DrawProbabilityResponse> getDrawProbability() {
-    return ResponseEntity.ok(drawProbabilityService.getDrawProbability());
-  }
-
-  @Operation(summary = "응모 당첨 확률 수정")
-  @PutMapping("/draw-probability")
-  public ResponseEntity<SuccessResponse> setDrawProbability(@RequestBody DrawProbabilityRequest request) {
-    drawProbabilityService.setDrawProbability(request);
-    return ResponseEntity.ok(new SuccessResponse());
-  }
-
-  @Operation(summary = "응모 상품 조회")
-  @GetMapping("/draw-reward-info")
-  public ResponseEntity<DrawRewardInfoListResponse> getAllDrawRewardInfo() {
-    return ResponseEntity.ok(drawRewardInfoService.getAllDrawRewardInfo());
-  }
-
-  @Operation(summary = "응모 상품 수정")
-  @PutMapping("/draw-reward-info")
-  public ResponseEntity<SuccessResponse> addDrawRewardInfoList(@ModelAttribute DrawRewardInfoListRequest drawRewardInfoListRequest) {
-    drawRewardInfoService.setDrawRewardInfoList(drawRewardInfoListRequest);
-    return ResponseEntity.ok(new SuccessResponse());
-  }
-
-  @Operation(summary = "이벤트 지표 조회")
-  @GetMapping("/indicator")
-  public ResponseEntity<QuizHistoryResponse> getRetentionMatrix() {
-    return ResponseEntity.ok(quizHistoryService.getDayNRetentionAndDAU());
-  }
-
-  @Operation(summary = "이벤트 현황 잔여 상품 개수 조회")
-  @GetMapping("/draw-remaining")
-  public ResponseEntity<DrawRemainingResponse> getDrawRemaining(){
-    return ResponseEntity.ok(drawService.getDrawRemaining());
-  }
-
-  @Operation(summary = "응모 현황 조회")
-  @GetMapping("/draw-history")
-  public ResponseEntity<DrawHistoryPageResponse> getDrawHistory(
-          @RequestParam(name = "page", required = false, defaultValue = "0") Integer page,
-          @RequestParam(name = "limit", required = false, defaultValue = "10") Integer limit,
-          @RequestParam(name = "sort", required = false, defaultValue = "desc") String sort){
-    return ResponseEntity.ok(drawHistoryService.getDrawHistory(page, limit, sort));
-
-  }
-
-  @Operation(summary = "1등 추첨")
-  @GetMapping("/topPrizeWinner")
-  public ResponseEntity<TopPrizeWinnerResponse> getTopPrizeWinner(){
-    return ResponseEntity.ok(topPrizeWinnerService.getTopPrizeWinner());
   }
 }
