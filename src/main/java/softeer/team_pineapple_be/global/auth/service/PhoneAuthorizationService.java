@@ -3,6 +3,7 @@ package softeer.team_pineapple_be.global.auth.service;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import softeer.team_pineapple_be.global.common.utils.RandomUtils;
 import softeer.team_pineapple_be.global.message.MessageService;
 
 /**
@@ -20,10 +21,8 @@ public class PhoneAuthorizationService {
    * @return 인증코드
    */
   public Integer sendAuthMessage(String phoneNumber) {
-    //    Integer authCode = RandomUtils.getAuthCode();
-    //    messageService.sendTextMessageTo(String.valueOf(authCode), phoneNumber);
-    //    return authCode;
-
-    return 111111;
+        Integer authCode = RandomUtils.getAuthCode();
+        messageService.sendTextMessageTo(String.valueOf(authCode), phoneNumber);
+        return authCode;
   }
 }
