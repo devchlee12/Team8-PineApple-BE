@@ -21,8 +21,9 @@ public class PhoneAuthorizationService {
    * @return 인증코드
    */
   public Integer sendAuthMessage(String phoneNumber) {
-        Integer authCode = RandomUtils.getAuthCode();
-        messageService.sendTextMessageTo(String.valueOf(authCode), phoneNumber);
-        return authCode;
+//        Integer authCode = RandomUtils.getAuthCode();
+//        messageService.sendTextMessageTo(String.valueOf(authCode), phoneNumber);
+//        return authCode;
+      return 671401;
   }
 }

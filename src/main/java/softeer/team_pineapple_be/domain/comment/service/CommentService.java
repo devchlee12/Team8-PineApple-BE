@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import softeer.team_pineapple_be.domain.comment.dao.CommentDao;
 import softeer.team_pineapple_be.domain.comment.domain.Comment;
 import softeer.team_pineapple_be.domain.comment.domain.CommentLike;
 import softeer.team_pineapple_be.domain.comment.domain.id.LikeId;
@@ -42,6 +43,7 @@ public class CommentService {
   private final AuthMemberService authMemberService;
   private final MemberRepository memberRepository;
   private final LikeRedisService likeRedisService;
+  private final CommentDao commentDao;
 
   @Transactional
   public CommentResponse getCommentById(Long id) {
@@ -95,10 +97,7 @@ public class CommentService {
    * @return 최신순 정렬 기대평 목록
    */
   public CommentPageResponse getCommentsSortedByRecent(int page, LocalDate date) {
-    PageRequest commentRequest = PageRequest.of(page, 10, Sort.by(Sort.Direction.DESC, "postTime"));
-    Page<Comment> commentPage =
-        commentRepository.findAllByPostTimeBetween(commentRequest, date.atStartOfDay(), date.atTime(LocalTime.MAX));
-    return CommentPageResponse.fromCommentPage(commentPage, likeRedisService);
+    return commentDao.getCommentsSortedByRecent(page, date, likeRedisService);
   }
 
   /**

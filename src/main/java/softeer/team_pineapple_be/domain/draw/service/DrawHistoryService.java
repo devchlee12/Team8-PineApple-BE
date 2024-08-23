@@ -29,7 +29,7 @@ public class DrawHistoryService {
      */
     @Transactional(readOnly = true)
     public DrawHistoryPageResponse getDrawHistory(int page, int limit, String sort) {
-        Pageable pageable = PageRequest.of(page, limit, Sort.by(Sort.Direction.fromString(sort.toUpperCase()), "createAt"));
+        Pageable pageable = PageRequest.of(page, limit, Sort.by(Sort.Direction.fromString(sort.toUpperCase()), "id"));
         Page<DrawHistory> drawHistoryPage = drawHistoryRepository.findAll(pageable);
         return DrawHistoryPageResponse.fromDrawHistoryPage(drawHistoryPage);
     }

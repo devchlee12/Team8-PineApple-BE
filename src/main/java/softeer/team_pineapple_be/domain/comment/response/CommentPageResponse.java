@@ -26,4 +26,9 @@ public class CommentPageResponse {
         content.stream().map(comment -> CommentResponse.fromComment(comment, likeRedisService)).toList();
     return new CommentPageResponse(comments.getTotalPages(), commentResponseList);
   }
+
+  public static CommentPageResponse fromCommentPage(Page<CommentResponse> comments) {
+    List<CommentResponse> content = comments.getContent();
+    return new CommentPageResponse(comments.getTotalPages(), content);
+  }
 }

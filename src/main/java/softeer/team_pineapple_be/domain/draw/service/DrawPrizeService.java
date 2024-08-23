@@ -58,7 +58,7 @@ public class DrawPrizeService {
     if (!memberPhoneNumber.equals(prize.getOwner())) {
       throw new RestApiException(DrawErrorCode.NOT_PRIZE_OWNER);
     }
-    messageService.sendPrizeImage(prize.getImage());
+//    messageService.sendPrizeImage(prize.getImage());
     String rewardInfoImage = prize.getDrawRewardInfo().getImage();
     return new SendPrizeResponse(rewardInfoImage);
   }

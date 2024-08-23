@@ -109,7 +109,7 @@ public class QuizService {
     QuizReward quizReward = quizRewardRepository.findBySuccessOrderAndQuizDate(participantOrder, localDate)
                                                 .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_REWARD));
     quizReward.invalidate();
-    messageService.sendPrizeImage(quizReward.getRewardImage());
+//    messageService.sendPrizeImage(quizReward.getRewardImage());
     quizRedisService.saveRewardWin(authMemberService.getMemberPhoneNumber());
   }
 

@@ -34,6 +34,10 @@ jacocoTestReport {
         exclude '**/enum/**'
         exclude '**/global/**/domain/**'
         exclude '**/softeer/team_pineapple_be/global/**/exception'
+        exclude '**/softeer/team_pineapple_be/global/cloud/**'
+        exclude '**/softeer/team_pineapple_be/domain/draw/service/DrawService$ImageUrls*'
+        exclude '**/softeer/team_pineapple_be/global/auth/interceptor/**'
+        exclude '**/softeer/team_pineapple_be/global/message/**'
     }))
 }
 

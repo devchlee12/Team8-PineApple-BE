@@ -15,6 +15,7 @@ import softeer.team_pineapple_be.domain.draw.request.DrawRewardInfoListRequest;
 import softeer.team_pineapple_be.domain.draw.response.DrawRewardInfoListResponse;
 import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
 import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
+import softeer.team_pineapple_be.global.cloud.service.exception.S3ErrorCode;
 import softeer.team_pineapple_be.global.exception.RestApiException;
 
 /**
@@ -71,7 +72,7 @@ public class DrawRewardInfoService {
       try {
         image = s3UploadService.saveFile(rewardInfoRequest.getImage(), fileName);
       } catch (IOException e) {
-        throw new RuntimeException(e);
+          throw new RestApiException(S3ErrorCode.IMAGE_FAILURE);
       }
       return new DrawRewardInfo(rewardInfoRequest.getRanking(), rewardInfoRequest.getName(),
           rewardInfoRequest.getStock(), image);

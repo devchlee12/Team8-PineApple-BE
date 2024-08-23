@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import softeer.team_pineapple_be.domain.comment.dao.CommentDao;
 import softeer.team_pineapple_be.domain.comment.domain.Comment;
 import softeer.team_pineapple_be.domain.comment.domain.CommentLike;
 import softeer.team_pineapple_be.domain.comment.domain.id.LikeId;
@@ -22,6 +23,7 @@ import softeer.team_pineapple_be.domain.comment.repository.CommentRepository;
 import softeer.team_pineapple_be.domain.comment.request.CommentLikeRequest;
 import softeer.team_pineapple_be.domain.comment.request.CommentRequest;
 import softeer.team_pineapple_be.domain.comment.response.CommentPageResponse;
+import softeer.team_pineapple_be.domain.comment.response.CommentResponse;
 import softeer.team_pineapple_be.domain.member.domain.Member;
 import softeer.team_pineapple_be.domain.member.exception.MemberErrorCode;
 import softeer.team_pineapple_be.domain.member.repository.MemberRepository;
@@ -50,6 +52,9 @@ public class CommentServiceTest {
 
     @Mock
     private MemberRepository memberRepository;
+
+    @Mock
+    private CommentDao commentDao;
 
     @Mock
     private LikeRedisService likeRedisService;
@@ -208,7 +213,18 @@ public class CommentServiceTest {
         // Given
         LocalDate date = LocalDate.now();
         Page<Comment> mockPage = new PageImpl<>(comments);
-        when(commentRepository.findAllByPostTimeBetween(any(), any(), any())).thenReturn(mockPage);
+
+        // CommentResponse 리스트로 변환
+        List<CommentResponse> commentResponseList = comments.stream()
+                .map(comment -> CommentResponse.fromComment(comment, likeRedisService)) // LikeRedisService는 필요에 따라 조정
+                .toList();
+
+        // CommentPageResponse 생성
+        CommentPageResponse mockResponse = new CommentPageResponse(mockPage.getTotalPages(), commentResponseList);
+
+        // Mocking commentDao의 메서드
+        when(commentDao.getCommentsSortedByRecent(anyInt(), any(LocalDate.class), any(LikeRedisService.class)))
+                .thenReturn(mockResponse);
 
         // When
         CommentPageResponse response = commentService.getCommentsSortedByRecent(0, date);
