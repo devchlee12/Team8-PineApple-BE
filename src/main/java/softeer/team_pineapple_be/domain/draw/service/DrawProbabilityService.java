@@ -67,7 +67,7 @@ public class DrawProbabilityService {
                                                            .map(entry -> new DrawProbability(entry.getKey(),
                                                                entry.getValue()))
                                                            .collect(Collectors.toList());
-
+    probabilityCache.clear();
     drawProbabilityRepository.saveAll(drawProbabilities);
   }
 }

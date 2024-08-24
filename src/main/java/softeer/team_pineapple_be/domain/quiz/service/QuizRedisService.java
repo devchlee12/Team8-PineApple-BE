@@ -17,10 +17,11 @@ public class QuizRedisService {
   private final RedisTemplate<String, String> redisTemplate;
 
   /**
-   * 일자별 퀴즈 참여 정보 초기화
+   * 일자별 퀴즈 참여 정보, 상품 받은 정보 초기화
    */
   public void deleteParticipateInfo() {
     redisTemplate.delete(PARTICIPATED_KEY);
+    redisTemplate.delete(REWARDED_KEY);
   }
 
   /**

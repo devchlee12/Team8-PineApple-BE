@@ -21,6 +21,7 @@ import softeer.team_pineapple_be.domain.draw.response.SendPrizeResponse;
 import softeer.team_pineapple_be.domain.draw.service.DrawPrizeService;
 import softeer.team_pineapple_be.domain.draw.service.DrawService;
 import softeer.team_pineapple_be.global.auth.annotation.Auth;
+import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 
 /**
  * 경품 추첨 컨트롤러
@@ -32,12 +33,13 @@ import softeer.team_pineapple_be.global.auth.annotation.Auth;
 public class DrawController {
   private final DrawService drawService;
   private final DrawPrizeService drawPrizeService;
+  private final AuthMemberService authMemberService;
 
   @Auth
   @PostMapping
   @Operation(summary = "경품 추첨에 참여하기")
   public ResponseEntity<DrawResponse> enterDraw() {
-    return ResponseEntity.ok(drawService.enterDraw());
+    return ResponseEntity.ok(drawService.enterDraw(authMemberService.getMemberPhoneNumber()));
   }
 
   @Operation(summary = "해당 날짜와 응모 시나리오 조회")

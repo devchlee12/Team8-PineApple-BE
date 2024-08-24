@@ -3,12 +3,16 @@ package softeer.team_pineapple_be.domain.comment.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
@@ -44,6 +48,16 @@ public class CommentService {
   private final MemberRepository memberRepository;
   private final LikeRedisService likeRedisService;
   private final CommentDao commentDao;
+  private final CommentLockService commentLockService;
+
+  @DistributedLock(key = "'comment:' + #commentId")
+  @Transactional
+  public Comment decreaseCommentLikeCountWithLock(Long commentId) {
+    Comment comment =
+        commentRepository.findById(commentId).orElseThrow(() -> new RestApiException(CommentErrorCode.NO_COMMENT));
+    comment.decreaseLikeCount();
+    return comment;
+  }
 
   @Transactional
   public CommentResponse getCommentById(Long id) {
@@ -51,31 +65,6 @@ public class CommentService {
         commentRepository.findById(id).orElseThrow(() -> new RestApiException(CommentErrorCode.NO_COMMENT));
     return CommentResponse.fromComment(comment, likeRedisService);
   }
-
-  //  @Scheduled(cron = "0 0 0 * * *")
-  //  @Transactional(isolation= Isolation.DEFAULT)
-  //  public void test(){
-  //    LocalDate yesterday = LocalDate.now().minusDays(1);
-  //    List<Comment> topComments = commentRepository
-  //            .findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(yesterday.atStartOfDay(), yesterday.atTime(LocalTime.MAX));
-  //
-  //
-  //    List<Member> updatedMembers = new ArrayList<>();
-  //
-  //    for (Comment comment : topComments) {
-  //      String phoneNumber = comment.getPhoneNumber();
-  //      Member member = memberRepository.findById(phoneNumber).orElseThrow(() -> new RestApiException(MemberErrorCode.NO_MEMBER)); // 유저 찾기
-  //
-  //      member.increment10ToolBoxCnt();
-  //
-  //      updatedMembers.add(member); // 변경된 멤버를 리스트에 추가
-  //
-  //    }
-  //
-  //
-  //    memberRepository.saveAll(updatedMembers);
-  //
-  //  }
 
   /**
    * 기대평을 좋아요 순으로 가져오는 메서드
@@ -101,13 +90,44 @@ public class CommentService {
   }
 
   /**
+   * 당일 가장 많은 좋아요를 받은 사람에게 10개의 툴박스 주기
+   */
+  @Scheduled(cron = "0 0 0 * * *")
+  @Transactional(isolation = Isolation.DEFAULT)
+  public void giveTenToolBoxToTopTenComment() {
+    LocalDate yesterday = LocalDate.now().minusDays(1);
+    List<Comment> topComments =
+        commentRepository.findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(yesterday.atStartOfDay(),
+            yesterday.atTime(LocalTime.MAX));
+
+
+    List<Member> updatedMembers = new ArrayList<>();
+
+    for (Comment comment : topComments) {
+      String phoneNumber = comment.getPhoneNumber();
+      Member member = memberRepository.findById(phoneNumber)
+                                      .orElseThrow(() -> new RestApiException(MemberErrorCode.NO_MEMBER)); // 유저 찾기
+
+      member.increment10ToolBoxCnt();
+
+      updatedMembers.add(member); // 변경된 멤버를 리스트에 추가
+
+    }
+
+
+    memberRepository.saveAll(updatedMembers);
+
+  }
+
+
+  /**
    * 기대평 작성 하는 메서드
    *
    * @param commentRequest
    */
   @Transactional
-  public void saveComment(CommentRequest commentRequest) {
-    String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
+  @DistributedLock(key = "#memberPhoneNumber")
+  public void saveComment(String memberPhoneNumber, CommentRequest commentRequest) {
     if (wasMemberCommentedToday(memberPhoneNumber)) {
       throw new RestApiException(CommentErrorCode.ALREADY_REVIEWED);
     }
@@ -119,26 +139,22 @@ public class CommentService {
 
   /**
    * 좋아요 누름 처리하는 메서드 이미 눌렀으면 좋아요를 줄이고, 안눌렀으면 좋아요 증가시킴
-   * TODO: 동시성 문제가 발생할 수 있으니 처리하자
    *
    * @param commentLikeRequest
    */
-  @Transactional
-  @DistributedLock(key = "#commentLikeRequest.getCommentId()")
-  public void saveCommentLike(CommentLikeRequest commentLikeRequest) {
-    String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
+  @DistributedLock(key = "#memberPhoneNumber")
+  public void saveCommentLike(String memberPhoneNumber, CommentLikeRequest commentLikeRequest) {
     LikeId likeId = new LikeId(commentLikeRequest.getCommentId(), memberPhoneNumber);
     Optional<CommentLike> byId = commentLikeRepository.findById(likeId);
-    Comment comment = commentRepository.findById(commentLikeRequest.getCommentId())
-                                       .orElseThrow(() -> new RestApiException(CommentErrorCode.NO_COMMENT));
+
     if (byId.isPresent()) {
-      likeRedisService.removeLike(comment.getId());
-      comment.decreaseLikeCount();
+      decreaseCommentLikeCountWithLock(commentLikeRequest.getCommentId());
+      likeRedisService.removeLike(commentLikeRequest.getCommentId());
       commentLikeRepository.delete(byId.get());
       return;
     }
-    comment.increaseLikeCount();
-    likeRedisService.addLike(comment.getId());
+    commentLockService.increaseCommentLikeCountWithLock(commentLikeRequest.getCommentId());
+    likeRedisService.addLike(commentLikeRequest.getCommentId());
     commentLikeRepository.save(new CommentLike(likeId));
   }
 

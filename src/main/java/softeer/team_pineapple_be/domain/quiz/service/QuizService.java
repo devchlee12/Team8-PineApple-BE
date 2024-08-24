@@ -40,9 +40,8 @@ import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.cloud.service.S3DeleteService;
 import softeer.team_pineapple_be.global.cloud.service.S3UploadService;
 import softeer.team_pineapple_be.global.exception.RestApiException;
+import softeer.team_pineapple_be.global.lock.annotation.DistributedLock;
 import softeer.team_pineapple_be.global.message.MessageService;
-
-//TODO: 예외처리(구조 맞추기 위해 남겨둠)
 
 /**
  * QuizContent의 요청에 대한 처리를 담당하는 클래스
@@ -98,9 +97,8 @@ public class QuizService {
    *
    * @param participantId
    */
-  @Transactional
-  public void getQuizReward(String participantId) {
-    String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
+  @DistributedLock(key = "#memberPhoneNumber")
+  public void getQuizReward(String memberPhoneNumber, String participantId) {
     if (quizRedisService.wasMemberWinRewardToday(memberPhoneNumber)) {
       throw new RestApiException(QuizErrorCode.ALREADY_WIN_REWARD_TODAY);
     }
@@ -169,10 +167,11 @@ public class QuizService {
     }
     QuizInfo quizInfo = quizInfoByDate.get();
     QuizContent quizContent = quizContentRepository.findByQuizDate(day)
-            .orElseThrow(
-                    () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
-    if(quizInfoModifyRequest.getQuizImage() == null){
-      quizInfoRepository.save(new QuizInfo(quizInfo.getId(), quizContent, quizInfoModifyRequest.getAnswerNum(), quizInfo.getQuizImage()));
+                                                   .orElseThrow(
+                                                       () -> new RestApiException(QuizErrorCode.NO_QUIZ_CONTENT));
+    if (quizInfoModifyRequest.getQuizImage() == null) {
+      quizInfoRepository.save(
+          new QuizInfo(quizInfo.getId(), quizContent, quizInfoModifyRequest.getAnswerNum(), quizInfo.getQuizImage()));
       return;
     }
     s3DeleteService.deleteFolder(fileName);
@@ -185,9 +184,8 @@ public class QuizService {
    *
    * @return 참여 여부가 등록된 사용자의 툴박스 개수
    */
-  @Transactional
-  public MemberInfoResponse quizHistory() {
-    String phoneNumber = authMemberService.getMemberPhoneNumber(); // 세션 없을 시 여기서 검증됨
+  @DistributedLock(key = "#phoneNumber")
+  public MemberInfoResponse quizHistory(String phoneNumber) {
     Member member = memberRepository.findByPhoneNumber(phoneNumber)
                                     .orElseThrow(() -> new RestApiException(MemberErrorCode.NO_MEMBER));
     QuizContent quizContent = quizContentRepository.findByQuizDate(determineQuizDate())

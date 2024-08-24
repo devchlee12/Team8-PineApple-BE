@@ -19,6 +19,7 @@ import softeer.team_pineapple_be.domain.quiz.response.QuizInfoResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizRewardCheckResponse;
 import softeer.team_pineapple_be.domain.quiz.service.QuizService;
 import softeer.team_pineapple_be.global.auth.annotation.Auth;
+import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.common.response.SuccessResponse;
 
 @Tag(name = "Quiz 관련 정보 제공", description = "퀴즈에 대한 처리(내용, 정답)")
@@ -28,6 +29,7 @@ import softeer.team_pineapple_be.global.common.response.SuccessResponse;
 public class QuizController {
 
   private final QuizService quizService;
+  private final AuthMemberService authMemberService;
 
   @Operation(summary = "퀴즈 내용 가져오기")
   @GetMapping
@@ -39,7 +41,8 @@ public class QuizController {
   @Operation(summary = "퀴즈 선착순 경품 받기")
   @PostMapping("/reward")
   public ResponseEntity<SuccessResponse> getQuizReward(@RequestBody @Valid QuizRewardRequest quizRewardRequest) {
-    quizService.getQuizReward(quizRewardRequest.getParticipantId());
+    String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
+    quizService.getQuizReward(memberPhoneNumber, quizRewardRequest.getParticipantId());
     return ResponseEntity.ok(new SuccessResponse());
   }
 
@@ -61,6 +64,7 @@ public class QuizController {
   @Operation(summary = "퀴즈 참여 여부 등록")
   @GetMapping("/participants")
   public ResponseEntity<MemberInfoResponse> setQuizHistory() {
-    return ResponseEntity.ok().body(quizService.quizHistory());
+    String memberPhoneNumber = authMemberService.getMemberPhoneNumber();
+    return ResponseEntity.ok().body(quizService.quizHistory(memberPhoneNumber));
   }
 }

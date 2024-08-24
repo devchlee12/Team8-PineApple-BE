@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -15,8 +16,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.web.multipart.MultipartFile;
-import softeer.team_pineapple_be.domain.draw.exception.DrawErrorCode;
 import softeer.team_pineapple_be.domain.fcfs.dto.FcfsInfo;
 import softeer.team_pineapple_be.domain.fcfs.service.FcfsService;
 import softeer.team_pineapple_be.domain.member.domain.Member;
@@ -48,7 +47,11 @@ import softeer.team_pineapple_be.global.message.MessageService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class QuizServiceTest {
 
@@ -102,26 +105,28 @@ public class QuizServiceTest {
   private Long order;
   private QuizReward quizReward;
 
-  @BeforeEach
-  void setUp() {
-    MockitoAnnotations.openMocks(this);
-    quizId = 1;
-    correctAnswerNum = (byte) 1;
-    incorrectAnswerNum = (byte) 2;
-    phoneNumber = "010-1234-5678";
-    quizImage = "quiz_image.png";
-    participantId = "testParticipantId";
-    successOrder = 1;
-    order = 1L;
-    quizContent = new QuizContent(1, "퀴즈 설명",           // quizDescription
-            "첫 번째 질문",       // quizQuestion1
-            "두 번째 질문",       // quizQuestion2
-            "세 번째 질문",       // quizQuestion3
-            "네 번째 질문",       // quizQuestion4
-            LocalDate.now()      // quizDate
-    );
-    quizReward = new QuizReward(1, "prizeImageUrl", LocalDate.now());
-    member = new Member(phoneNumber);
+  @Test
+  void getQuizContentOfDate_ExistingQuizContent_ShouldReturnResponse() {
+    // Given
+    LocalDate date = LocalDate.now();
+    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.of(quizContent));
+
+    // When
+    QuizContentResponse response = quizService.getQuizContentOfDate(date);
+
+    // Then
+    assertThat(response).isNotNull();
+    assertThat(response.getQuizQuestions().get(1)).isEqualTo("첫 번째 질문");
+  }
+
+  @Test
+  void getQuizContentOfDate_NoQuizContent_ShouldThrowException() {
+    // Given
+    LocalDate date = LocalDate.now();
+    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> quizService.getQuizContentOfDate(date)).isInstanceOf(RestApiException.class);
   }
 
   @Test
@@ -226,6 +231,192 @@ public class QuizServiceTest {
   }
 
   @Test
+  void getQuizReward_AlreadyRewardedToday_ShouldThrowException() {
+    // Given
+    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
+    when(quizRedisService.wasMemberWinRewardToday(phoneNumber)).thenReturn(true);
+
+    // When & Then
+    assertThatThrownBy(() -> quizService.getQuizReward(phoneNumber, participantId)).isInstanceOf(
+        RestApiException.class);
+  }
+
+  @Test
+  void getQuizReward_ValidReward_ShouldProcessReward() {
+    // Given
+    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
+    when(quizRedisService.wasMemberWinRewardToday(phoneNumber)).thenReturn(false);
+    when(fcfsService.getParticipantOrder(participantId)).thenReturn(successOrder);
+    when(quizRewardRepository.findBySuccessOrderAndQuizDate(successOrder, LocalDate.now())).thenReturn(
+        Optional.of(quizReward));
+
+    // When
+    quizService.getQuizReward(phoneNumber, participantId);
+
+    // Then
+    verify(quizRedisService).saveRewardWin(phoneNumber);
+  }
+
+  @Test
+  void isMemberRewardedToday_ShouldReturnRewardStatus() {
+    // Given
+    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
+    when(quizRedisService.wasMemberWinRewardToday(phoneNumber)).thenReturn(true);
+
+    // When
+    QuizRewardCheckResponse response = quizService.isMemberRewardedToday();
+
+    // Then
+    assertThat(response.getRewarded()).isTrue();
+  }
+
+  @Test
+  void modifyOrSaveQuizContent_ExistingContent_ShouldUpdateQuizContent() {
+    // Given
+    LocalDate date = LocalDate.now();
+    QuizModifyRequest quizModifyRequest = new QuizModifyRequest();
+    quizModifyRequest.setQuizDescription("Updated Description");
+    Map<String, String> questions = new HashMap<>();
+    questions.put("1", "첫 번째 질문");
+    questions.put("2", "두 번째 질문");
+    quizModifyRequest.setQuizQuestions(questions);
+    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.of(quizContent));
+
+    // When
+    quizService.modifyOrSaveQuizContent(date, quizModifyRequest);
+
+    // Then
+    assertThat(quizContent.getQuizDescription()).isEqualTo("Updated Description");
+    assertThat(quizContent.getQuizQuestion1()).isEqualTo("첫 번째 질문");
+  }
+
+  @Test
+  void modifyOrSaveQuizContent_NewContent_ShouldSaveQuizContent() {
+    // Given
+    LocalDate date = LocalDate.now();
+    QuizModifyRequest quizModifyRequest = new QuizModifyRequest();
+    quizModifyRequest.setQuizDescription("New Description");
+    quizModifyRequest.setQuizQuestions(Map.of("1", "첫 번째 질문", "2", "두 번째 질문", "3", "세 번째 질문", "4", "네 번째 질문"));
+
+    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.empty());
+
+    // When
+    quizService.modifyOrSaveQuizContent(date, quizModifyRequest);
+
+    // Then
+    verify(quizContentRepository).save(any(QuizContent.class));
+  }
+
+  @Test
+  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldThrowIoeException() throws IOException {
+    // Given
+    LocalDate day = LocalDate.now();
+    String QUIZ_INFO_FOLDER = "quizInfo/";
+    String fileName = QUIZ_INFO_FOLDER + day.toString() + "/";
+    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
+    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
+    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
+
+    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
+    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
+    String expectedImageUrl = "http://example.com/test-image.jpg";
+    when(s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName)).thenThrow(IOException.class);
+    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
+
+    // Then
+    assertThatThrownBy(() -> quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest)).isInstanceOf(
+        RestApiException.class).satisfies(exception -> {
+      RestApiException restApiException = (RestApiException) exception; // 캐스팅
+      assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_IMAGE);
+    });
+  }
+
+  @Test
+  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldThrowRestApiException() throws IOException {
+    // Given
+    LocalDate day = LocalDate.now();
+    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
+    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
+    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
+
+    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
+    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
+    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.empty());
+
+    // Then
+    assertThatThrownBy(() -> quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest)).isInstanceOf(
+        RestApiException.class).satisfies(exception -> {
+      RestApiException restApiException = (RestApiException) exception; // 캐스팅
+      assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_CONTENT);
+    });
+  }
+
+  @Test
+  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldThrowRuntimeException() throws IOException {
+    // Given
+    LocalDate day = LocalDate.now();
+    String QUIZ_INFO_FOLDER = "quizInfo/";
+    String fileName = QUIZ_INFO_FOLDER + day.toString() + "/";
+    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
+    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
+    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
+
+    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
+    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
+    String expectedImageUrl = "http://example.com/test-image.jpg";
+    when(s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName)).thenThrow(RuntimeException.class);
+    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
+
+    // Then
+    assertThatThrownBy(() -> quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest)).isInstanceOf(
+        RestApiException.class).satisfies(exception -> {
+      RestApiException restApiException = (RestApiException) exception; // 캐스팅
+      assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_IMAGE);
+    });
+  }
+
+  @Test
+  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldUpdateQuizInfo() throws IOException {
+    // Given
+    LocalDate day = LocalDate.now();
+    String QUIZ_INFO_FOLDER = "quizInfo/";
+    String fileName = QUIZ_INFO_FOLDER + day.toString() + "/";
+    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
+    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
+    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
+
+    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
+    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
+    String expectedImageUrl = "http://example.com/test-image.jpg";
+    when(s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName)).thenReturn(expectedImageUrl);
+    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
+
+    // When
+    quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest);
+
+    // Then
+    assertThat(quizInfo.getAnswerNum()).isEqualTo(correctAnswerNum);
+    assertThat(quizInfo.getQuizImage()).isEqualTo(expectedImageUrl);
+  }
+
+  @Test
+  void modifyOrSaveQuizInfo_NewQuizInfo_ShouldSaveQuizInfo() {
+    // Given
+    LocalDate day = LocalDate.now();
+    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
+    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
+    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
+    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.empty());
+    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
+
+    // When
+    quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest);
+
+    // Then
+    verify(quizInfoRepository).save(any(QuizInfo.class));
+  }
+
+  @Test
   @DisplayName("퀴즈 참여기록을 조회하려고 했으나 유저가 존재하지 않는 경우- FailureCase")
   void quizHistory_MemberDoesNotExist_ThrowsRestApiException() {
     LocalTime quizTime = LocalTime.of(15, 30);
@@ -240,10 +431,14 @@ public class QuizServiceTest {
       when(quizContentRepository.findByQuizDate(any())).thenReturn(Optional.empty());
 
       // When & Then
-      assertThatThrownBy(() -> quizService.quizHistory()).isInstanceOf(RestApiException.class).satisfies(exception -> {
-        RestApiException restApiException = (RestApiException) exception; // 캐스팅
-        assertThat(restApiException.getErrorCode()).isEqualTo(MemberErrorCode.NO_MEMBER);
-      });
+      assertThatThrownBy(() -> quizService.quizHistory(phoneNumber)).isInstanceOf(RestApiException.class)
+                                                                    .satisfies(exception -> {
+                                                                      RestApiException restApiException =
+                                                                          (RestApiException) exception; // 캐스팅
+                                                                      assertThat(
+                                                                          restApiException.getErrorCode()).isEqualTo(
+                                                                          MemberErrorCode.NO_MEMBER);
+                                                                    });
     }
   }
 
@@ -262,13 +457,17 @@ public class QuizServiceTest {
       when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member));
       when(quizContentRepository.findByQuizDate(any())).thenReturn(Optional.of(quizContent));
       when(quizHistoryRepository.findByMemberPhoneNumberAndQuizContentId(phoneNumber, quizContent.getId())).thenReturn(
-              Optional.of(new QuizHistory())); // 참여 이력 존재
+          Optional.of(new QuizHistory())); // 참여 이력 존재
 
       // When & Then
-      assertThatThrownBy(() -> quizService.quizHistory()).isInstanceOf(RestApiException.class).satisfies(exception -> {
-        RestApiException restApiException = (RestApiException) exception; // 캐스팅
-        assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.PARTICIPATION_EXISTS);
-      });
+      assertThatThrownBy(() -> quizService.quizHistory(phoneNumber)).isInstanceOf(RestApiException.class)
+                                                                    .satisfies(exception -> {
+                                                                      RestApiException restApiException =
+                                                                          (RestApiException) exception; // 캐스팅
+                                                                      assertThat(
+                                                                          restApiException.getErrorCode()).isEqualTo(
+                                                                          QuizErrorCode.PARTICIPATION_EXISTS);
+                                                                    });
     }
   }
 
@@ -288,10 +487,14 @@ public class QuizServiceTest {
       when(quizContentRepository.findByQuizDate(any())).thenReturn(Optional.empty());
 
       // When & Then
-      assertThatThrownBy(() -> quizService.quizHistory()).isInstanceOf(RestApiException.class).satisfies(exception -> {
-        RestApiException restApiException = (RestApiException) exception; // 캐스팅
-        assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_CONTENT);
-      });
+      assertThatThrownBy(() -> quizService.quizHistory(phoneNumber)).isInstanceOf(RestApiException.class)
+                                                                    .satisfies(exception -> {
+                                                                      RestApiException restApiException =
+                                                                          (RestApiException) exception; // 캐스팅
+                                                                      assertThat(
+                                                                          restApiException.getErrorCode()).isEqualTo(
+                                                                          QuizErrorCode.NO_QUIZ_CONTENT);
+                                                                    });
     }
   }
 
@@ -309,13 +512,13 @@ public class QuizServiceTest {
       when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
       when(quizContentRepository.findByQuizDate(any())).thenReturn(Optional.of(quizContent));
       when(quizHistoryRepository.findByMemberPhoneNumberAndQuizContentId(phoneNumber, quizContent.getId())).thenReturn(
-              Optional.empty());
+          Optional.empty());
       when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member));
       when(quizRedisService.wasParticipatedInQuiz(member.getPhoneNumber())).thenReturn(false);
 
 
       // When
-      MemberInfoResponse response = quizService.quizHistory();
+      MemberInfoResponse response = quizService.quizHistory(phoneNumber);
 
       // Then
       assertThat(response).isNotNull();
@@ -398,222 +601,26 @@ public class QuizServiceTest {
     });
   }
 
-  @Test
-  void getQuizContentOfDate_ExistingQuizContent_ShouldReturnResponse() {
-    // Given
-    LocalDate date = LocalDate.now();
-    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.of(quizContent));
-
-    // When
-    QuizContentResponse response = quizService.getQuizContentOfDate(date);
-
-    // Then
-    assertThat(response).isNotNull();
-    assertThat(response.getQuizQuestions().get(1)).isEqualTo("첫 번째 질문");
-  }
-
-  @Test
-  void getQuizContentOfDate_NoQuizContent_ShouldThrowException() {
-    // Given
-    LocalDate date = LocalDate.now();
-    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.empty());
-
-    // When & Then
-    assertThatThrownBy(() -> quizService.getQuizContentOfDate(date))
-            .isInstanceOf(RestApiException.class);
-  }
-
-  @Test
-  void getQuizReward_AlreadyRewardedToday_ShouldThrowException() {
-    // Given
-    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
-    when(quizRedisService.wasMemberWinRewardToday(phoneNumber)).thenReturn(true);
-
-    // When & Then
-    assertThatThrownBy(() -> quizService.getQuizReward(participantId))
-            .isInstanceOf(RestApiException.class);
-  }
-
-  @Test
-  void getQuizReward_ValidReward_ShouldProcessReward() {
-    // Given
-    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
-    when(quizRedisService.wasMemberWinRewardToday(phoneNumber)).thenReturn(false);
-    when(fcfsService.getParticipantOrder(participantId)).thenReturn(successOrder);
-    when(quizRewardRepository.findBySuccessOrderAndQuizDate(successOrder, LocalDate.now())).thenReturn(Optional.of(quizReward));
-
-    // When
-    quizService.getQuizReward(participantId);
-
-    // Then
-    verify(quizRedisService).saveRewardWin(phoneNumber);
-  }
-
-  @Test
-  void isMemberRewardedToday_ShouldReturnRewardStatus() {
-    // Given
-    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
-    when(quizRedisService.wasMemberWinRewardToday(phoneNumber)).thenReturn(true);
-
-    // When
-    QuizRewardCheckResponse response = quizService.isMemberRewardedToday();
-
-    // Then
-    assertThat(response.getRewarded()).isTrue();
-  }
-
-  @Test
-  void modifyOrSaveQuizContent_NewContent_ShouldSaveQuizContent() {
-    // Given
-    LocalDate date = LocalDate.now();
-    QuizModifyRequest quizModifyRequest = new QuizModifyRequest();
-    quizModifyRequest.setQuizDescription("New Description");
-    quizModifyRequest.setQuizQuestions(Map.of(
-            "1", "첫 번째 질문",
-            "2", "두 번째 질문",
-            "3", "세 번째 질문",
-            "4", "네 번째 질문"
-    ));
-
-    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.empty());
-
-    // When
-    quizService.modifyOrSaveQuizContent(date, quizModifyRequest);
-
-    // Then
-    verify(quizContentRepository).save(any(QuizContent.class));
-  }
-
-  @Test
-  void modifyOrSaveQuizContent_ExistingContent_ShouldUpdateQuizContent() {
-    // Given
-    LocalDate date = LocalDate.now();
-    QuizModifyRequest quizModifyRequest = new QuizModifyRequest();
-    quizModifyRequest.setQuizDescription("Updated Description");
-    Map<String, String> questions = new HashMap<>();
-    questions.put("1", "첫 번째 질문");
-    questions.put("2", "두 번째 질문");
-    quizModifyRequest.setQuizQuestions(questions);
-    when(quizContentRepository.findByQuizDate(date)).thenReturn(Optional.of(quizContent));
-
-    // When
-    quizService.modifyOrSaveQuizContent(date, quizModifyRequest);
-
-    // Then
-    assertThat(quizContent.getQuizDescription()).isEqualTo("Updated Description");
-    assertThat(quizContent.getQuizQuestion1()).isEqualTo("첫 번째 질문");
-  }
-
-  @Test
-  void modifyOrSaveQuizInfo_NewQuizInfo_ShouldSaveQuizInfo() {
-    // Given
-    LocalDate day = LocalDate.now();
-    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
-    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
-    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
-    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.empty());
-    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
-
-    // When
-    quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest);
-
-    // Then
-    verify(quizInfoRepository).save(any(QuizInfo.class));
-  }
-
-  @Test
-  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldUpdateQuizInfo() throws IOException {
-    // Given
-    LocalDate day = LocalDate.now();
-    String QUIZ_INFO_FOLDER = "quizInfo/";
-    String fileName = QUIZ_INFO_FOLDER + day.toString() + "/";
-    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
-    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
-    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
-
-    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
-    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
-    String expectedImageUrl = "http://example.com/test-image.jpg";
-    when(s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName)).thenReturn(expectedImageUrl);
-    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
-
-    // When
-    quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest);
-
-    // Then
-    assertThat(quizInfo.getAnswerNum()).isEqualTo(correctAnswerNum);
-    assertThat(quizInfo.getQuizImage()).isEqualTo(expectedImageUrl);
-  }
-
-  @Test
-  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldThrowIoeException() throws IOException {
-    // Given
-    LocalDate day = LocalDate.now();
-    String QUIZ_INFO_FOLDER = "quizInfo/";
-    String fileName = QUIZ_INFO_FOLDER + day.toString() + "/";
-    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
-    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
-    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
-
-    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
-    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
-    String expectedImageUrl = "http://example.com/test-image.jpg";
-    when(s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName)).thenThrow(IOException.class);
-    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
-
-    // Then
-    assertThatThrownBy(() -> quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest))
-            .isInstanceOf(RestApiException.class)
-            .satisfies(exception -> {
-              RestApiException restApiException = (RestApiException) exception; // 캐스팅
-              assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_IMAGE);
-            });
-  }
-
-  @Test
-  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldThrowRuntimeException() throws IOException {
-    // Given
-    LocalDate day = LocalDate.now();
-    String QUIZ_INFO_FOLDER = "quizInfo/";
-    String fileName = QUIZ_INFO_FOLDER + day.toString() + "/";
-    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
-    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
-    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
-
-    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
-    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
-    String expectedImageUrl = "http://example.com/test-image.jpg";
-    when(s3UploadService.saveFile(quizInfoModifyRequest.getQuizImage(), fileName)).thenThrow(RuntimeException.class);
-    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.of(quizContent));
-
-    // Then
-    assertThatThrownBy(() -> quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest))
-            .isInstanceOf(RestApiException.class)
-            .satisfies(exception -> {
-              RestApiException restApiException = (RestApiException) exception; // 캐스팅
-              assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_IMAGE);
-            });
-  }
-
-  @Test
-  void modifyOrSaveQuizInfo_ExistingQuizInfo_ShouldThrowRestApiException() throws IOException {
-    // Given
-    LocalDate day = LocalDate.now();
-    QuizInfoModifyRequest quizInfoModifyRequest = new QuizInfoModifyRequest();
-    quizInfoModifyRequest.setAnswerNum(correctAnswerNum);
-    quizInfoModifyRequest.setQuizImage(mock(MultipartFile.class));
-
-    QuizInfo quizInfo = new QuizInfo(quizContent, correctAnswerNum, quizImage);
-    when(quizDao.getQuizInfoByDate(day)).thenReturn(Optional.of(quizInfo));
-    when(quizContentRepository.findByQuizDate(day)).thenReturn(Optional.empty());
-
-    // Then
-    assertThatThrownBy(() -> quizService.modifyOrSaveQuizInfo(day, quizInfoModifyRequest))
-            .isInstanceOf(RestApiException.class)
-            .satisfies(exception -> {
-              RestApiException restApiException = (RestApiException) exception; // 캐스팅
-              assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.NO_QUIZ_CONTENT);
-            });
+  @BeforeEach
+  void setUp() {
+    MockitoAnnotations.openMocks(this);
+    quizId = 1;
+    correctAnswerNum = (byte) 1;
+    incorrectAnswerNum = (byte) 2;
+    phoneNumber = "010-1234-5678";
+    quizImage = "quiz_image.png";
+    participantId = "testParticipantId";
+    successOrder = 1;
+    order = 1L;
+    quizContent = new QuizContent(1, "퀴즈 설명",           // quizDescription
+        "첫 번째 질문",       // quizQuestion1
+        "두 번째 질문",       // quizQuestion2
+        "세 번째 질문",       // quizQuestion3
+        "네 번째 질문",       // quizQuestion4
+        LocalDate.now()      // quizDate
+    );
+    quizReward = new QuizReward(1, "prizeImageUrl", LocalDate.now());
+    member = new Member(phoneNumber);
   }
 
   //    @Test

@@ -3,6 +3,12 @@ spring.application.name: team_pineapple_be
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 10  # 풀 내에서 유지할 최소 커넥션 수
+      maximum-pool-size: 30  # 최대 커넥션 수
+      idle-timeout: 600000  # 10분 동안 사용되지 않으면 커넥션을 닫음
+      max-lifetime: 1800000  # 커넥션의 최대 수명은 30분
+      connection-timeout: 30000
   config:
     import: application-secret.yml
 

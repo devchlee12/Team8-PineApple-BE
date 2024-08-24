@@ -10,6 +10,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import io.jsonwebtoken.Jwts;
+import jakarta.annotation.PostConstruct;
 import softeer.team_pineapple_be.global.auth.exception.AuthErrorCode;
 import softeer.team_pineapple_be.global.exception.RestApiException;
 
@@ -74,6 +75,12 @@ public class JwtUtils {
       throw new RestApiException(AuthErrorCode.JWT_PARSING_ERROR);
     }
     return role;
+  }
+
+  @PostConstruct
+  public void init() {
+    // JWT 초기화 로직
+    Jwts.parser().build();
   }
 
   public Boolean isExpired(String token) {
