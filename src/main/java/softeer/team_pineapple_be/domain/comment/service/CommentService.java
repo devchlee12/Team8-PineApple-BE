@@ -48,17 +48,13 @@ public class CommentService {
   private final MemberRepository memberRepository;
   private final LikeRedisService likeRedisService;
   private final CommentDao commentDao;
-  private final CommentLockService commentLockService;
 
-  @DistributedLock(key = "'comment:' + #commentId")
-  @Transactional
-  public Comment decreaseCommentLikeCountWithLock(Long commentId) {
-    Comment comment =
-        commentRepository.findById(commentId).orElseThrow(() -> new RestApiException(CommentErrorCode.NO_COMMENT));
-    comment.decreaseLikeCount();
-    return comment;
-  }
-
+  /**
+   * 기대평 ID로 기대평 가져오기
+   *
+   * @param id
+   * @return
+   */
   @Transactional
   public CommentResponse getCommentById(Long id) {
     Comment comment =
@@ -119,13 +115,11 @@ public class CommentService {
 
   }
 
-
   /**
    * 기대평 작성 하는 메서드
    *
    * @param commentRequest
    */
-  @Transactional
   @DistributedLock(key = "#memberPhoneNumber")
   public void saveComment(String memberPhoneNumber, CommentRequest commentRequest) {
     if (wasMemberCommentedToday(memberPhoneNumber)) {
@@ -142,20 +136,42 @@ public class CommentService {
    *
    * @param commentLikeRequest
    */
-  @DistributedLock(key = "#memberPhoneNumber")
+  @DistributedLock(key = "#commentLikeRequest.getCommentId()")
   public void saveCommentLike(String memberPhoneNumber, CommentLikeRequest commentLikeRequest) {
     LikeId likeId = new LikeId(commentLikeRequest.getCommentId(), memberPhoneNumber);
     Optional<CommentLike> byId = commentLikeRepository.findById(likeId);
 
     if (byId.isPresent()) {
-      decreaseCommentLikeCountWithLock(commentLikeRequest.getCommentId());
+      decreaseCommentLikeCount(commentLikeRequest.getCommentId());
       likeRedisService.removeLike(commentLikeRequest.getCommentId());
       commentLikeRepository.delete(byId.get());
       return;
     }
-    commentLockService.increaseCommentLikeCountWithLock(commentLikeRequest.getCommentId());
+    increaseCommentLikeCount(commentLikeRequest.getCommentId());
     likeRedisService.addLike(commentLikeRequest.getCommentId());
     commentLikeRepository.save(new CommentLike(likeId));
+  }
+
+  /**
+   * 좋아요 감소
+   *
+   * @param commentId
+   */
+  private void decreaseCommentLikeCount(Long commentId) {
+    Comment comment =
+        commentRepository.findById(commentId).orElseThrow(() -> new RestApiException(CommentErrorCode.NO_COMMENT));
+    comment.decreaseLikeCount();
+  }
+
+  /**
+   * 좋아요 증가
+   *
+   * @param commentId
+   */
+  private void increaseCommentLikeCount(Long commentId) {
+    Comment comment =
+        commentRepository.findById(commentId).orElseThrow(() -> new RestApiException(CommentErrorCode.NO_COMMENT));
+    comment.increaseLikeCount();
   }
 
   /**

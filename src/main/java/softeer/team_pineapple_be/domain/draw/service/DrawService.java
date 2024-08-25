@@ -67,7 +67,6 @@ public class DrawService {
    * @return 경품에 대한 정보 응답 객체
    */
   @DistributedLock(key = "#memberPhoneNumber")
-  @Transactional
   public DrawResponse enterDraw(String memberPhoneNumber) {
     Member member = processEnteringDraw(memberPhoneNumber);
     Byte prizeRank = randomDrawPrizeService.drawPrize();

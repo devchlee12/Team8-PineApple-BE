@@ -63,9 +63,6 @@ public class CommentServiceTest {
   @Mock
   private LikeRedisService likeRedisService;
 
-  @Mock
-  private CommentLockService commentLockService;
-
   private String phoneNumber = "010-1234-5678";
   private List<Comment> comments;
 

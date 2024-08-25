@@ -22,6 +22,7 @@ import softeer.team_pineapple_be.domain.draw.service.DrawPrizeService;
 import softeer.team_pineapple_be.domain.draw.service.DrawService;
 import softeer.team_pineapple_be.global.auth.annotation.Auth;
 import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
+import softeer.team_pineapple_be.global.lock.annotation.SemaphoreGuarded;
 
 /**
  * 경품 추첨 컨트롤러
@@ -38,6 +39,7 @@ public class DrawController {
   @Auth
   @PostMapping
   @Operation(summary = "경품 추첨에 참여하기")
+  @SemaphoreGuarded
   public ResponseEntity<DrawResponse> enterDraw() {
     return ResponseEntity.ok(drawService.enterDraw(authMemberService.getMemberPhoneNumber()));
   }
