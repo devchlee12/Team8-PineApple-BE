@@ -1,5 +1,6 @@
 package softeer.team_pineapple_be.domain.draw.service;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -33,6 +34,7 @@ class DrawProbabilityServiceTest {
     }
 
     @Test
+    @DisplayName("응모 확률을 조회했으나 찾아지지 않는 경우 - FailureCase")
     void testGetDrawProbabilityByRanking_NotFound() {
         // given
         Byte ranking = 5;
@@ -47,6 +49,7 @@ class DrawProbabilityServiceTest {
                 });
     }
     @Test
+    @DisplayName("응모 확률 조회에 성공한 경우 - SuccessCase")
     void testGetDrawProbability() {
         // given
         DrawProbability drawProbability1 = new DrawProbability((byte) 1, 10);
@@ -67,6 +70,7 @@ class DrawProbabilityServiceTest {
     }
 
     @Test
+    @DisplayName("캐시에서 조회가 성공한 경우 - SuccessCase")
     void testGetDrawProbabilityByRanking_CacheHit() {
         // given
         Byte ranking = 1;
@@ -83,6 +87,7 @@ class DrawProbabilityServiceTest {
     }
 
     @Test
+    @DisplayName("캐시에서 조회가 실패한 경우 - FailureCase")
     void testGetDrawProbabilityByRanking_CacheMiss() {
         // given
         Byte ranking = 1;
@@ -101,6 +106,7 @@ class DrawProbabilityServiceTest {
 
 
     @Test
+    @DisplayName("성공적으로 당첨 확률을 수정한 경우 - SuccessCase")
     void testSetDrawProbability() {
         // given
         DrawProbabilityRequest request = new DrawProbabilityRequest(Map.of((byte) 1, 10, (byte) 2, 20));

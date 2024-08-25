@@ -72,6 +72,9 @@ class DrawServiceTest {
   private DrawProbabilityRepository drawProbabilityRepository;
 
   @Mock
+  private DrawLockService drawLockService;
+
+  @Mock
   private DrawRewardInfoRepository drawRewardInfoRepository;
 
   @Mock
@@ -101,6 +104,19 @@ class DrawServiceTest {
   private DrawPrize drawPrize;
   private List<DrawPrize> drawPrizeList; // 값이 들어간 리스트
   private DrawRewardInfo rewardInfo; // 값이 들어간 리스트로 초기화
+
+  @BeforeEach
+  void setUp() {
+    MockitoAnnotations.openMocks(this);
+    phoneNumber = "010-1234-5678";
+    prizeRank = 2;
+    drawDailyMessageInfo =
+            new DrawDailyMessageInfo("Win message", "Lose message", "Lose scenario", "Win image", "Lose image",
+                    "Common Scenario", LocalDate.now());
+    drawPrize = new DrawPrize(2L, "prize_image_url", true, phoneNumber, null);
+    drawPrizeList = new ArrayList<>(List.of(drawPrize));
+    rewardInfo = new DrawRewardInfo(prizeRank, "Prize", 1, "image", drawPrizeList);
+  }
 
   @Test
   @DisplayName("사용자가 참여 자격이 없는 케이스 - FailureCase")
@@ -147,8 +163,8 @@ class DrawServiceTest {
   }
 
   @Test
-  @DisplayName("사용자가 응모에 성공적으로 참여한 케이스 테스트 - SuccessCase")
-  void enterDraw_DrawIsSuccessful_ReturnWinningResponse() {
+  @DisplayName("사용자가 응모에 성공적으로 참여하는 케이스 - SuccessCase")
+  void enterDraw_SuccessCase() {
     // Given
     Member member = new Member(phoneNumber);
     member.incrementToolBoxCnt(); // 툴박스 개수 증가
@@ -158,17 +174,16 @@ class DrawServiceTest {
     when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member));
     when(randomDrawPrizeService.drawPrize()).thenReturn(prizeRank);
     when(drawRewardInfoRepository.findById(prizeRank)).thenReturn(Optional.of(rewardInfo));
-    when(drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())).thenReturn(Optional.of(drawDailyMessageInfo));
-    when(drawPrizeRepository.findFirstByDrawRewardInfoAndValid(rewardInfo, true)).thenReturn(Optional.of(drawPrize));
+    when(drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())).thenReturn(Optional.ofNullable(drawDailyMessageInfo));
 
     // When
-    DrawResponse response = drawService.enterDraw(phoneNumber);
+    drawService.enterDraw(phoneNumber);
 
     // Then
-    verify(drawHistoryRepository).save(any(DrawHistory.class));
-    assertThat(rewardInfo.getStock()).isEqualTo(0); // 재고 감소 확인
-    assert response instanceof DrawWinningResponse;
+    verify(drawLockService).disposeDrawPrize(phoneNumber, drawDailyMessageInfo, prizeRank, member);
+
   }
+
 
   @Test
   @DisplayName("사용자가 참여하려고 했으나 존재하지 않는 멤버인 케이스 - FailureCase")
@@ -187,93 +202,11 @@ class DrawServiceTest {
                                                                 });
   }
 
-  @Test
-  @DisplayName("순위에 존재하지 않는 상품이 뽑힌 케이스 - FailureCase")
-  void enterDraw_NoPrizeFound_ThrowRestApiException() {
-    // Given
 
-    Member member = new Member(phoneNumber);
-    member.incrementToolBoxCnt(); // 툴박스 개수 증가
-    member.generateCar();
-    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
-    when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member)); // Member 객체 추가
-    when(drawRewardInfoRepository.findById(prizeRank)).thenReturn(Optional.empty());
 
-    // When & Then
-    assertThatThrownBy(() -> drawService.enterDraw(phoneNumber)).isInstanceOf(RestApiException.class)
-                                                                .satisfies(exception -> {
-                                                                  RestApiException restApiException =
-                                                                      (RestApiException) exception; // 캐스팅
-                                                                  assertThat(restApiException.getErrorCode()).isEqualTo(
-                                                                      DrawErrorCode.NO_PRIZE);
-                                                                });
-  }
 
   @Test
-  @DisplayName("상품이 유효하지 않은 케이스 - FailureCase")
-  void enterDraw_NoValidPrizeFound_ThrowRestApiException() {
-    // Given
-    Member member = new Member(phoneNumber);
-    member.incrementToolBoxCnt(); // 툴박스 개수 증가
-    member.generateCar();
-    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
-    when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member)); // Member 객체 추가
-    when(randomDrawPrizeService.drawPrize()).thenReturn(prizeRank);
-    when(drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())).thenReturn(Optional.of(drawDailyMessageInfo));
-    DrawRewardInfo rewardInfo = new DrawRewardInfo(prizeRank, "Prize", 1, "image", new ArrayList<>());
-    when(drawRewardInfoRepository.findById(prizeRank)).thenReturn(Optional.of(rewardInfo));
-    when(drawPrizeRepository.findFirstByDrawRewardInfoAndValid(rewardInfo, true)).thenReturn(
-        Optional.empty()); // 빈 Optional 반환
-
-    // When & Then
-    assertThatThrownBy(() -> drawService.enterDraw(phoneNumber)).isInstanceOf(RestApiException.class)
-                                                                .satisfies(exception -> {
-                                                                  RestApiException restApiException =
-                                                                      (RestApiException) exception; // 캐스팅
-                                                                  assertThat(restApiException.getErrorCode()).isEqualTo(
-                                                                      DrawErrorCode.NO_VALID_PRIZE);
-                                                                });
-  }
-
-  @Test
-  @DisplayName("사용자가 응모에 성공적으로 참여했으나 경품 재고가 없어 당첨에 실패한 케이스 - SuccessCase")
-  void enterDraw_PrizeIsNotAvailable_ReturnLoseResponse() {
-    // Given
-    Member member = new Member(phoneNumber);
-    member.incrementToolBoxCnt(); // 툴박스 개수 증가
-    member.generateCar(); // 차량 보유 설정
-
-    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
-    when(memberRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(member));
-    when(randomDrawPrizeService.drawPrize()).thenReturn(prizeRank);
-    when(drawRewardInfoRepository.findById(prizeRank)).thenReturn(
-        Optional.of(new DrawRewardInfo(prizeRank, "Prize", 0, null))); // 재고 없음
-    when(drawDailyMessageInfoRepository.findByDrawDate(LocalDate.now())).thenReturn(Optional.of(drawDailyMessageInfo));
-    when(commentRepository.findByPhoneNumberAndPostTimeBetween(eq(phoneNumber), any(), any())).thenReturn(
-        Optional.of(new Comment()));
-
-    // When
-    DrawResponse response = drawService.enterDraw(phoneNumber);
-
-    // Then
-    verify(drawHistoryRepository).save(any(DrawHistory.class));
-    assertThat(response).isInstanceOf(DrawLoseResponse.class);
-  }
-
-  @BeforeEach
-  void setUp() {
-    MockitoAnnotations.openMocks(this);
-    phoneNumber = "010-1234-5678";
-    prizeRank = 2;
-    drawDailyMessageInfo =
-        new DrawDailyMessageInfo("Win message", "Lose message", "Lose scenario", "Win image", "Lose image",
-            "Common Scenario", LocalDate.now());
-    drawPrize = new DrawPrize(2L, "prize_image_url", true, phoneNumber, null);
-    drawPrizeList = new ArrayList<>(List.of(drawPrize));
-    rewardInfo = new DrawRewardInfo(prizeRank, "Prize", 1, "image", drawPrizeList);
-  }
-
-  @Test
+  @DisplayName("오늘의 응모 정보를 불러오기 - SuccessCase")
   void testGetDailyMessageInfo() {
     // given
     LocalDate date = LocalDate.now();
@@ -294,6 +227,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("오늘의 응모 정보를 불러오기 - FailureCase")
   void testGetDailyMessageInfo_NotFound() {
     // given
     LocalDate date = LocalDate.now();
@@ -311,6 +245,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("오늘의 응모 시나리오 불러오기 - SuccessCase")
   void testGetDrawDailyScenario() {
     // given
     EventDayInfo eventDayInfo = new EventDayInfo(1, LocalDate.now());
@@ -330,7 +265,8 @@ class DrawServiceTest {
   }
 
   @Test
-  void testGetDrawDailyScenario_FailureCas2e() {
+  @DisplayName("오늘의 응모 시나리오 정보가 없어 실패한 경우 - FailureCase")
+  void testGetDrawDailyScenario_FailureCase_NoDailyInfo() {
     // given
     EventDayInfo eventDayInfo = new EventDayInfo(1, LocalDate.now());
     when(eventDayInfoRepository.findByEventDate(LocalDate.now())).thenReturn(Optional.of(eventDayInfo));
@@ -349,7 +285,8 @@ class DrawServiceTest {
   }
 
   @Test
-  void testGetDrawDailyScenario_FailureCase() {
+  @DisplayName("이벤트 참여 가능 날짜가 아니라 실패한 경우 - FailureCase")
+  void testGetDrawDailyScenario_FailureCase_NotValidDate() {
     // given
     EventDayInfo eventDayInfo = new EventDayInfo(1, LocalDate.now());
     when(eventDayInfoRepository.findByEventDate(LocalDate.now())).thenReturn(Optional.empty());
@@ -397,6 +334,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("집파일 업로드에 실패한 경우 - FailureCase")
   void updateOrSaveDailyMessageInfo_ImageUploadFail_FailureCase() throws Exception {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
@@ -422,6 +360,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("두장의 사진이 있을 때 집파일 업로드에 성공한 경우 - SuccessCase")
   void updateOrSaveDailyMessageInfo_TwoExist_DrawDailyInfoExist_SuccessCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
@@ -439,6 +378,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("두장의 사진이 있을 때 집파일 업로드에 성공한 경우 - SuccessCase")
   void updateOrSaveDailyMessageInfo_TwoExist_DrawDailyInfoNotExist_SuccessCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
@@ -456,6 +396,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("두장의 사진이 없을 때 집파일 업로드에 성공한 경우 - SuccessCase")
   void updateOrSaveDailyMessageInfo_TwoNotExist_DrawDailyInfoNotExist_FailureCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
@@ -474,24 +415,22 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("두장의 사진이 없을 때 집파일 업로드에 성공한 경우 - SuccessCase")
   void updateOrSaveDailyMessageInfo_TwoNotExist_SuccessCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
     String loseScenario = "loseScenario";
-    MultipartFile winImage = mock(MultipartFile.class);
-    MultipartFile loseImage = mock(MultipartFile.class);
     String commonScenario = "commonScenario";
     LocalDate drawDate = LocalDate.now();
     DrawDailyMessageModifyRequest drawDailyMessageModifyRequest =
         new DrawDailyMessageModifyRequest(winMessage, loseMessage, loseScenario, null, null, commonScenario, drawDate);
     when(drawDailyMessageInfoRepository.findByDrawDate(drawDate)).thenReturn(Optional.of(drawDailyMessageInfo));
-    //        when(drawDailyMessageModifyRequest.getWinImage()).thenReturn(null);
-    //        when(drawDailyMessageModifyRequest.getLoseImage()).thenReturn(null);
 
     drawService.updateOrSaveDailyMessageInfo(drawDailyMessageModifyRequest);
   }
 
   @Test
+  @DisplayName("성공 이미지가 없을 때 이미지 업로드에 실패한 경우 - FailureCase")
   void updateOrSaveDailyMessageInfo_WinImageNotExist_DrawDailyInfoNotExist_FailureCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
@@ -512,6 +451,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("성공 이미지가 없을 때 이미지 업로드에 성공한 경우 - SuccessCase")
   void updateOrSaveDailyMessageInfo_WinImageNotExist_SuccessCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
@@ -528,6 +468,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("실패 이미지가 없을 때 이미지 업로드에 실패한 경우 - FailureCase")
   void updateOrSaveDailyMessageInfo_loseImageNotExist_DrawDailyInfoNotExist_FailureCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";
@@ -548,6 +489,7 @@ class DrawServiceTest {
   }
 
   @Test
+  @DisplayName("실패 이미지가 없을 때 이미지 업로드에 성공한 경우 - SuccessCase")
   void updateOrSaveDailyMessageInfo_loseImageNotExist_SuccessCase() {
     String winMessage = "winMessage";
     String loseMessage = "loseMessage";

@@ -104,7 +104,30 @@ public class QuizServiceTest {
   private Integer successOrder;
   private Long order;
   private QuizReward quizReward;
+  private Integer participantOrder;
 
+  @BeforeEach
+  void setUp() {
+    MockitoAnnotations.openMocks(this);
+    quizId = 1;
+    correctAnswerNum = (byte) 1;
+    incorrectAnswerNum = (byte) 2;
+    phoneNumber = "010-1234-5678";
+    quizImage = "quiz_image.png";
+    participantId = "testParticipantId";
+    successOrder = 1;
+    participantOrder = 5;
+    order = 1L;
+    quizContent = new QuizContent(1, "퀴즈 설명",           // quizDescription
+            "첫 번째 질문",       // quizQuestion1
+            "두 번째 질문",       // quizQuestion2
+            "세 번째 질문",       // quizQuestion3
+            "네 번째 질문",       // quizQuestion4
+            LocalDate.now()      // quizDate
+    );
+    quizReward = new QuizReward(1, "prizeImageUrl", LocalDate.now());
+    member = new Member(phoneNumber);
+  }
   @Test
   void getQuizContentOfDate_ExistingQuizContent_ShouldReturnResponse() {
     // Given
@@ -246,8 +269,8 @@ public class QuizServiceTest {
     // Given
     when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
     when(quizRedisService.wasMemberWinRewardToday(phoneNumber)).thenReturn(false);
-    when(fcfsService.getParticipantOrder(participantId)).thenReturn(successOrder);
-    when(quizRewardRepository.findBySuccessOrderAndQuizDate(successOrder, LocalDate.now())).thenReturn(
+    when(fcfsService.getParticipantOrder(participantId)).thenReturn(participantOrder);
+    when(quizRewardRepository.findBySuccessOrderAndQuizDate(participantOrder, LocalDate.now())).thenReturn(
         Optional.of(quizReward));
 
     // When
@@ -601,27 +624,6 @@ public class QuizServiceTest {
     });
   }
 
-  @BeforeEach
-  void setUp() {
-    MockitoAnnotations.openMocks(this);
-    quizId = 1;
-    correctAnswerNum = (byte) 1;
-    incorrectAnswerNum = (byte) 2;
-    phoneNumber = "010-1234-5678";
-    quizImage = "quiz_image.png";
-    participantId = "testParticipantId";
-    successOrder = 1;
-    order = 1L;
-    quizContent = new QuizContent(1, "퀴즈 설명",           // quizDescription
-        "첫 번째 질문",       // quizQuestion1
-        "두 번째 질문",       // quizQuestion2
-        "세 번째 질문",       // quizQuestion3
-        "네 번째 질문",       // quizQuestion4
-        LocalDate.now()      // quizDate
-    );
-    quizReward = new QuizReward(1, "prizeImageUrl", LocalDate.now());
-    member = new Member(phoneNumber);
-  }
 
   //    @Test
   //    void getQuizReward_RewardExists_SendPrizeImage() {

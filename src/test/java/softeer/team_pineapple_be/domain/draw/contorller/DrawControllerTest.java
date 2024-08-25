@@ -17,6 +17,7 @@ import softeer.team_pineapple_be.domain.draw.response.DrawLoseResponse;
 import softeer.team_pineapple_be.domain.draw.response.DrawWinningResponse;
 import softeer.team_pineapple_be.domain.draw.service.DrawPrizeService;
 import softeer.team_pineapple_be.domain.draw.service.DrawService;
+import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 import softeer.team_pineapple_be.global.common.response.SuccessResponse;
 
 import static org.mockito.Mockito.verify;
@@ -36,6 +37,9 @@ public class DrawControllerTest {
   @Mock
   private DrawPrizeService drawPrizeService;
 
+  @Mock
+  private AuthMemberService authMemberService;
+
   @InjectMocks
   private DrawController drawController;
 
@@ -48,7 +52,7 @@ public class DrawControllerTest {
   @DisplayName("응모가 성공적으로 참여하여 낙첨된 경우 - SuccessCase")
   public void enterDraw_DrawIsLose_ReturnLoseResponse() throws Exception {
     // Given
-    when(drawService.enterDraw("010-1111-1111")).thenReturn(loseResponse);
+    when(drawService.enterDraw(authMemberService.getMemberPhoneNumber())).thenReturn(loseResponse);
 
     // When & Then
     mockMvc.perform(post("/draw").contentType(MediaType.APPLICATION_JSON))
@@ -62,7 +66,7 @@ public class DrawControllerTest {
   @DisplayName("응모가 성공적으로 참여하여 당첨된 경우 - SuccessCase")
   public void enterDraw_DrawIsWin_ReturnWinningResponse() throws Exception {
     // Given
-    when(drawService.enterDraw("010-1111-1111")).thenReturn(winningResponse);
+    when(drawService.enterDraw(authMemberService.getMemberPhoneNumber())).thenReturn(winningResponse);
 
     // When & Then
     mockMvc.perform(post("/draw").contentType(MediaType.APPLICATION_JSON))

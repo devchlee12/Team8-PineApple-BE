@@ -21,6 +21,7 @@ import softeer.team_pineapple_be.domain.quiz.request.QuizInfoRequest;
 import softeer.team_pineapple_be.domain.quiz.response.QuizContentResponse;
 import softeer.team_pineapple_be.domain.quiz.response.QuizInfoResponse;
 import softeer.team_pineapple_be.domain.quiz.service.QuizService;
+import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -35,6 +36,9 @@ class QuizControllerTest {
 
   @Mock
   private QuizService quizService;
+
+  @Mock
+  private AuthMemberService authMemberService;
 
   @InjectMocks
   private QuizController quizController;
@@ -88,6 +92,7 @@ class QuizControllerTest {
     Member member = new Member("010-1234-5678");
     MemberInfoResponse response = MemberInfoResponse.of(member, false); // 필요한 필드 초기화
     doReturn(response).when(quizService).quizHistory("010-1234-5678");
+    doReturn("010-1234-5678").when(authMemberService).getMemberPhoneNumber();
 
     // When & Then
     mockMvc.perform(get("/quiz/participants")).andExpect(status().isOk()).andExpect(jsonPath("$.phoneNumber").exists());

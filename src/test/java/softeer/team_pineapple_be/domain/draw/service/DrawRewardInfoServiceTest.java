@@ -3,6 +3,7 @@ package softeer.team_pineapple_be.domain.draw.service;
 import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -43,6 +44,7 @@ public class DrawRewardInfoServiceTest {
     }
 
     @Test
+    @DisplayName("모든 응모 정보를 성공적으로 가져온 경우 - SuccessCase")
     void testGetAllDrawRewardInfo() {
         // given
         DrawRewardInfo rewardInfo1 = new DrawRewardInfo((byte) 1, "Prize 1", 10, "image1.jpg");
@@ -61,6 +63,7 @@ public class DrawRewardInfoServiceTest {
     }
 
     @Test
+    @DisplayName("이미지와 함께 저장에 성공한 경우 - SuccessCase")
     void testSetDrawRewardInfoList_WithImageUpload() throws IOException {
         // given
         DrawRewardInfoListRequest request = new DrawRewardInfoListRequest();
@@ -80,6 +83,7 @@ public class DrawRewardInfoServiceTest {
     }
 
     @Test
+    @DisplayName("이미지없이 저장에 성공한 경우 - SuccessCase")
     void testSetDrawRewardInfoList_WithoutImageUpload() {
         // given
         DrawRewardInfo existingRewardInfo = new DrawRewardInfo((byte) 1, "Prize 1", 10, "existingImage.jpg");
@@ -98,6 +102,7 @@ public class DrawRewardInfoServiceTest {
     }
 
     @Test
+    @DisplayName("이미지와 함께 저장에 실패한 경우 - FailureCase")
     void testSetDrawRewardInfoList_ImageUploadIOException() throws IOException {
         // given
         DrawRewardInfoListRequest request = new DrawRewardInfoListRequest();

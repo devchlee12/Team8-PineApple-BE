@@ -1,6 +1,7 @@
 package softeer.team_pineapple_be.domain.draw.service;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -32,6 +33,7 @@ class DrawHistoryServiceTest {
     }
 
     @Test
+    @DisplayName("성공적으로 응모 기록을 가져오는 경우 - SuccessCase")
     void testGetDrawHistory() {
         // given
         int page = 0;

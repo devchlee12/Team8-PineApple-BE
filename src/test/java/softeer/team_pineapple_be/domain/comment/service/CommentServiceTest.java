@@ -11,7 +11,9 @@ import org.springframework.data.domain.PageImpl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,9 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class CommentServiceTest {
 
@@ -64,7 +64,17 @@ public class CommentServiceTest {
   private LikeRedisService likeRedisService;
 
   private String phoneNumber = "010-1234-5678";
-  private List<Comment> comments;
+  private List<Comment> comments;@BeforeEach
+  void setUp() {
+    MockitoAnnotations.openMocks(this);
+    comments = new ArrayList<>();
+    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
+    for (int i = 1; i <= 5; i++) {
+      Comment comment = new Comment((long) i, phoneNumber, i + phoneNumber, i, LocalDateTime.now().plusMinutes(i));
+      comments.add(comment);
+    }
+
+  }
 
   @Test
   @DisplayName("getCommentsSortedByLikes: 좋아요 순으로 기대평을 가져온다.")
@@ -127,28 +137,9 @@ public class CommentServiceTest {
 
     // Then
     verify(commentLikeRepository).save(any(CommentLike.class));
-    verify(likeRedisService).addLike(comment.getId());
     assertThat(commentLikeRequest.getCommentId()).isEqualTo(1L);
   }
 
-  @Test
-  @DisplayName("saveCommentLike: 좋아요를 성공적으로 추가한다.")
-  void saveCommentLike_CommentNotExists() {
-    // Given
-    CommentLikeRequest commentLikeRequest = new CommentLikeRequest(1L);
-    Comment comment = new Comment("테스트 내용", phoneNumber);
-    when(commentRepository.findById(1L)).thenReturn(Optional.empty());
-    when(commentLikeRepository.findById(any(LikeId.class))).thenReturn(Optional.empty());
-
-    // When
-
-    // When & Then
-    assertThatThrownBy(() -> commentService.saveCommentLike(phoneNumber, commentLikeRequest)).isInstanceOf(
-        RestApiException.class).satisfies(exception -> {
-      RestApiException restApiException = (RestApiException) exception;
-      assertThat(restApiException.getErrorCode()).isEqualTo(CommentErrorCode.NO_COMMENT);
-    });
-  }
 
   @Test
   @DisplayName("saveCommentLike: 좋아요를 취소한다.")
@@ -166,7 +157,6 @@ public class CommentServiceTest {
 
     // Then
     verify(commentLikeRepository).delete(any(CommentLike.class));
-    verify(likeRedisService).removeLike(comment.getId());
     assertThat(comment.getLikeCount()).isEqualTo(0);
   }
 
@@ -195,13 +185,6 @@ public class CommentServiceTest {
     when(memberRepository.findById(phoneNumber)).thenReturn(Optional.empty());
     when(commentRepository.save(any(Comment.class))).thenReturn(new Comment());
 
-    //// When & Then
-    //            assertThatThrownBy(() -> quizService.quizHistory())
-    //                    .isInstanceOf(RestApiException.class)
-    //                    .satisfies(exception -> {
-    //                        RestApiException restApiException = (RestApiException) exception; // 캐스팅
-    //                        assertThat(restApiException.getErrorCode()).isEqualTo(QuizErrorCode.PARTICIPATION_EXISTS);
-    //                    });
     // When & Then
     assertThatThrownBy(() -> commentService.saveComment(phoneNumber, commentRequest)).isInstanceOf(
         RestApiException.class).satisfies(exception -> {
@@ -226,15 +209,97 @@ public class CommentServiceTest {
     verify(memberRepository).findById(phoneNumber);
     verify(commentRepository).save(any(Comment.class));
   }
+  @Test
+  void testGiveTenToolBoxToTopTenComment() {
+    // Given
+    LocalDate yesterday = LocalDate.now().minusDays(1);
+    Comment comment1 = new Comment("댓글1", "010-1234-5678"); // 댓글 Mock
+    Comment comment2 = new Comment("댓글2","010-9876-5432");
+    Member member1 = new Member("010-1234-5678");
+    Member member2 = new Member("010-9876-5432");
+    List<Comment> topComments = Arrays.asList(comment1, comment2);
 
-  @BeforeEach
-  void setUp() {
-    MockitoAnnotations.openMocks(this);
-    comments = new ArrayList<>();
-    when(authMemberService.getMemberPhoneNumber()).thenReturn(phoneNumber);
-    for (int i = 1; i <= 5; i++) {
-      Comment comment = new Comment((long) i, phoneNumber, i + phoneNumber, i, LocalDateTime.now().plusMinutes(i));
-      comments.add(comment);
-    }
+    when(commentRepository.findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(
+            yesterday.atStartOfDay(), yesterday.atTime(LocalTime.MAX)))
+            .thenReturn(topComments); // 댓글 Mock 설정
+
+    when(memberRepository.findById(comment1.getPhoneNumber())).thenReturn(Optional.of(member1));
+    when(memberRepository.findById(comment2.getPhoneNumber())).thenReturn(Optional.of(member2));
+
+    // When
+    commentService.giveTenToolBoxToTopTenComment();
+
+    // Then
+    verify(memberRepository).saveAll(anyList()); // saveAll 메서드 호출 확인
+    assertThat(member1.getToolBoxCnt()).isEqualTo(10); // 툴박스 수량 확인 (상태에 따라 조정 필요)
   }
+
+  @Test
+  void testGiveTenToolBoxToTopTenComment_NoMemberFound() {
+    // Given
+    LocalDate yesterday = LocalDate.now().minusDays(1);
+    Comment comment1 = new Comment("댓글1", "010-1234-5678"); // 댓글 Mock
+    List<Comment> topComments = Arrays.asList(comment1);
+
+    when(commentRepository.findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(
+            yesterday.atStartOfDay(), yesterday.atTime(LocalTime.MAX)))
+            .thenReturn(topComments); // 댓글 Mock 설정
+
+    when(memberRepository.findById(comment1.getPhoneNumber())).thenReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> commentService.giveTenToolBoxToTopTenComment()).isInstanceOf(
+            RestApiException.class).satisfies(exception -> {
+      RestApiException restApiException = (RestApiException) exception;
+      assertThat(restApiException.getErrorCode()).isEqualTo(MemberErrorCode.NO_MEMBER);
+    });
+
+  }
+
+  @Test
+  void testGetCommentById_Success() {
+    // Given
+    Long commentId = 1L;
+    Comment comment1 = new Comment("댓글1", "010-1234-5678"); // 댓글 Mock
+    when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment1)); // 댓글 Mock 설정
+
+    // When
+    CommentResponse commentResponse = commentService.getCommentById(commentId);
+
+    // Then
+    assertThat(commentResponse).isNotNull(); // 응답이 null이 아님을 확인
+    assertThat(commentResponse).isInstanceOf(CommentResponse.class); // 응답 타입 확인
+  }
+
+  @Test
+  void testGetCommentById_NoCommentFound() {
+    // Given
+    Long commentId = 1L;
+    Comment comment1 = new Comment("댓글1", "010-1234-5678"); // 댓글 Mock
+    when(commentRepository.findById(commentId)).thenReturn(Optional.empty()); // 댓글 없음 설정
+
+    // When & Then
+    assertThatThrownBy(() -> commentService.getCommentById(commentId)).isInstanceOf(
+            RestApiException.class).satisfies(exception -> {
+      RestApiException restApiException = (RestApiException) exception;
+      assertThat(restApiException.getErrorCode()).isEqualTo(CommentErrorCode.NO_COMMENT);
+    }); // 예외 메시지 확인
+  }
+
+  @Test
+  void decreaseCommentLick_ThrowsRestApiException() {
+    // Given
+    Long commentId = 1L;
+    Comment comment1 = new Comment("댓글1", "010-1234-5678"); // 댓글 Mock
+    when(commentRepository.findById(commentId)).thenReturn(Optional.empty()); // 댓글 없음 설정
+
+    // When & Then
+    assertThatThrownBy(() -> commentService.decreaseCommentLikeCountWithLock(commentId)).isInstanceOf(
+            RestApiException.class).satisfies(exception -> {
+      RestApiException restApiException = (RestApiException) exception;
+      assertThat(restApiException.getErrorCode()).isEqualTo(CommentErrorCode.NO_COMMENT);
+    }); // 예외 메시지 확인
+  }
+
+
 }

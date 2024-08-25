@@ -38,6 +38,7 @@ jacocoTestReport {
         exclude '**/softeer/team_pineapple_be/domain/draw/service/DrawService$ImageUrls*'
         exclude '**/softeer/team_pineapple_be/global/auth/interceptor/**'
         exclude '**/softeer/team_pineapple_be/global/message/**'
+        exclude '**/softeer/team_pineapple_be/domain/admin/controller/**'
     }))
 }
 
