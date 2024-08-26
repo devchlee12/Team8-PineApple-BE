@@ -1,5 +1,6 @@
 package softeer.team_pineapple_be.domain.quiz.batch;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,7 @@ public class QuizDailyBatch {
    * 매일 12시에 퀴즈 참여 정보 초기화
    */
   @Scheduled(cron = "0 0 12 * * *")
+  @CacheEvict(value = "quizContent", allEntries = true, cacheManager = "redisCacheManager")
   public void quizDailyBatch() {
     quizRedisService.deleteParticipateInfo();
   }

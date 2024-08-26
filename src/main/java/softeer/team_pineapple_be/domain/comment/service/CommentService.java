@@ -5,7 +5,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -89,8 +88,11 @@ public class CommentService {
    * 당일 가장 많은 좋아요를 받은 사람에게 10개의 툴박스 주기
    */
   @Scheduled(cron = "0 0 0 * * *")
-  @Transactional(isolation = Isolation.DEFAULT)
+  @DistributedLock(key = "topTen")
   public void giveTenToolBoxToTopTenComment() {
+    if (likeRedisService.isTopTenBatched()) {
+      return;
+    }
     LocalDate yesterday = LocalDate.now().minusDays(1);
     List<Comment> topComments =
         commentRepository.findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(yesterday.atStartOfDay(),

@@ -2,8 +2,10 @@ package softeer.team_pineapple_be.domain.comment.service;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SetOperations;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import jakarta.annotation.PostConstruct;
@@ -21,6 +23,7 @@ import softeer.team_pineapple_be.global.auth.service.AuthMemberService;
 @RequiredArgsConstructor
 public class LikeRedisService {
   private static final String LIKE_PREFIX = "comment:";
+  private static final String BATCH_PREFIX = "batched";
   private final RedisTemplate<String, String> redisTemplate;
   private final AuthMemberService authMemberService;
   private final CommentLikeRepository commentLikeRepository;
@@ -65,6 +68,22 @@ public class LikeRedisService {
     }
     String memberPhoneNumber = authContext.getPhoneNumber();
     return setOps.isMember(LIKE_PREFIX + commentId, memberPhoneNumber);
+  }
+
+  /**
+   * 좋아요 Top10 툴박스 주는 로직 실행 여부
+   *
+   * @return 툴박스 제공 로직 배치 여부
+   */
+  public boolean isTopTenBatched() {
+    ValueOperations<String, String> kvOps = redisTemplate.opsForValue();
+    String batchDate = kvOps.get(BATCH_PREFIX);
+    if (batchDate == null || !batchDate.equals(LocalDate.now().toString())) {
+      kvOps.set(BATCH_PREFIX, LocalDate.now().toString());
+      return false;
+    }
+    kvOps.set(BATCH_PREFIX, LocalDate.now().toString());
+    return true;
   }
 
   /**

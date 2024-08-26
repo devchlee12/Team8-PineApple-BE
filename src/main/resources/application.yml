@@ -21,6 +21,11 @@ springdoc:
   paths-to-match:
     - /**
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
 
 server:
   servlet:

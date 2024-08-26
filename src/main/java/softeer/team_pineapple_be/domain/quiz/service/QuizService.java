@@ -1,6 +1,8 @@
 package softeer.team_pineapple_be.domain.quiz.service;
 
 import org.springdoc.core.parsers.ReturnTypeParser;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,6 +74,7 @@ public class QuizService {
    * @return 현재 날짜의 이벤트 내용
    */
   @Transactional(readOnly = true)
+  @Cacheable(value = "quizContent", cacheManager = "redisCacheManager")
   public QuizContentResponse getQuizContent() {
     QuizContent quizContent = quizContentRepository.findByQuizDate(determineQuizDate())
                                                    .orElseThrow(
@@ -107,7 +110,7 @@ public class QuizService {
     QuizReward quizReward = quizRewardRepository.findBySuccessOrderAndQuizDate(participantOrder, localDate)
                                                 .orElseThrow(() -> new RestApiException(QuizErrorCode.NO_QUIZ_REWARD));
     quizReward.invalidate();
-//    messageService.sendPrizeImage(quizReward.getRewardImage());
+    //    messageService.sendPrizeImage(quizReward.getRewardImage());
     quizRedisService.saveRewardWin(authMemberService.getMemberPhoneNumber());
   }
 
@@ -129,6 +132,7 @@ public class QuizService {
    * @param quizModifyRequest
    */
   @Transactional
+  @CacheEvict(value = "quizContent", allEntries = true, cacheManager = "redisCacheManager")
   public void modifyOrSaveQuizContent(LocalDate date, QuizModifyRequest quizModifyRequest) {
     Optional<QuizContent> quizContentOptional = quizContentRepository.findByQuizDate(date);
     if (quizContentOptional.isEmpty()) {

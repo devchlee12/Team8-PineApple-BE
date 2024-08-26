@@ -1,11 +1,12 @@
 package softeer.team_pineapple_be.domain.draw.service;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,6 @@ import softeer.team_pineapple_be.global.exception.RestApiException;
 @RequiredArgsConstructor
 public class DrawProbabilityService {
 
-  private static final ConcurrentHashMap<Byte, Integer> probabilityCache = new ConcurrentHashMap<>();
   private final DrawProbabilityRepository drawProbabilityRepository;
 
   /**
@@ -40,18 +40,12 @@ public class DrawProbabilityService {
     return new DrawProbabilityResponse(probabilitiesMap);
   }
 
+  @Cacheable(value = "drawProbability", key = "#ranking", cacheManager = "redisCacheManager")
   @Transactional(readOnly = true)
   public Integer getDrawProbabilityByRanking(Byte ranking) {
-    if (probabilityCache.containsKey(ranking)) {
-      return probabilityCache.get(ranking);
-    }
-
-    Integer probability = drawProbabilityRepository.findById(ranking)
-                                                   .orElseThrow(
-                                                       () -> new RestApiException(DrawErrorCode.NO_PRIZE_PROBABILITY))
-                                                   .getProbability();
-    probabilityCache.put(ranking, probability);
-    return probability;
+    return drawProbabilityRepository.findById(ranking)
+                                    .orElseThrow(() -> new RestApiException(DrawErrorCode.NO_PRIZE_PROBABILITY))
+                                    .getProbability();
   }
 
   /**
@@ -60,6 +54,7 @@ public class DrawProbabilityService {
    * @param request 수정하고자 하는 경품 확률
    */
   @Transactional
+  @CacheEvict(value = "drawProbability", allEntries = true)
   public void setDrawProbability(DrawProbabilityRequest request) {
     Map<Byte, Integer> probabilities = request.getProbabilities();
     List<DrawProbability> drawProbabilities = probabilities.entrySet()
@@ -67,7 +62,6 @@ public class DrawProbabilityService {
                                                            .map(entry -> new DrawProbability(entry.getKey(),
                                                                entry.getValue()))
                                                            .collect(Collectors.toList());
-    probabilityCache.clear();
     drawProbabilityRepository.saveAll(drawProbabilities);
   }
 }
