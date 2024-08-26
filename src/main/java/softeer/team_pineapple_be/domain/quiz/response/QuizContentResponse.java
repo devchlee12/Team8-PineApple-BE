@@ -6,12 +6,14 @@ import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import softeer.team_pineapple_be.domain.quiz.domain.QuizContent;
 
 /**
  * QuizContent의 응답을 구성하는 클래스
  */
 @AllArgsConstructor
+@NoArgsConstructor
 @Getter
 public class QuizContentResponse {
 
