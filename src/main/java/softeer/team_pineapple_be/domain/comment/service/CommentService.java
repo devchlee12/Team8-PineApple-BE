@@ -1,10 +1,14 @@
 package softeer.team_pineapple_be.domain.comment.service;
 
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -138,7 +142,10 @@ public class CommentService {
    *
    * @param commentLikeRequest
    */
-  @DistributedLock(key = "#commentLikeRequest.getCommentId()")
+//  @DistributedLock(key = "#commentLikeRequest.getCommentId()")
+  @Retryable(retryFor = CannotAcquireLockException.class, maxAttempts = 3,
+      backoff = @Backoff(random = true, delay = 100, maxDelay = 1000))
+  @Transactional(isolation = Isolation.SERIALIZABLE)
   public void saveCommentLike(String memberPhoneNumber, CommentLikeRequest commentLikeRequest) {
     LikeId likeId = new LikeId(commentLikeRequest.getCommentId(), memberPhoneNumber);
     Optional<CommentLike> byId = commentLikeRepository.findById(likeId);
