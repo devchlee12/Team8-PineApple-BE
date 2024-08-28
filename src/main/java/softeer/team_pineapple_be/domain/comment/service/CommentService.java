@@ -3,6 +3,9 @@ package softeer.team_pineapple_be.domain.comment.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -138,7 +141,9 @@ public class CommentService {
    *
    * @param commentLikeRequest
    */
-  @DistributedLock(key = "#commentLikeRequest.getCommentId()")
+  @Transactional
+  @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 10,
+      backoff = @Backoff(random = true, delay = 500, maxDelay = 1000))
   public void saveCommentLike(String memberPhoneNumber, CommentLikeRequest commentLikeRequest) {
     LikeId likeId = new LikeId(commentLikeRequest.getCommentId(), memberPhoneNumber);
     Optional<CommentLike> byId = commentLikeRepository.findById(likeId);
