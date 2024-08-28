@@ -3,6 +3,7 @@ package softeer.team_pineapple_be.domain.comment.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
 import softeer.team_pineapple_be.domain.comment.domain.Comment;
 
 /**
@@ -24,7 +26,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
   List<Comment> findTop10CommentsByPostTimeBetweenOrderByLikeCountDescIdAsc(@Param("startOfDay") LocalDateTime startOfDay,
                                              @Param("endOfDay") LocalDateTime endOfDay);
 
-
-
-
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  Optional<Comment> findById(Long aLong);
 }
